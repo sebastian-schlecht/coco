@@ -9,11 +9,17 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class ClassDatabaseBuilder(object):
-    def build_read(self, db, folder, shape=None, force=False):
+    def __init(self):
+        self.db = None
+
+    def build(self, db, folder, shape=None, force=False):
         """
-        Parse a folder, build the db and return an iterator object
-        Re-use the db if already existing
-        TODO: Implement global shuffling
+        Build a db from a a folder
+        :param db:
+        :param folder:
+        :param shape:
+        :param force:
+        :return:
         """
         if not self.db_exists(db) or force:
             try:
@@ -21,95 +27,176 @@ class ClassDatabaseBuilder(object):
             except:
                 pass
             self.build_db(db, folder, shape)
+
+    def setup_read(self, db):
+        """
+        Setup the builder for db read access
+        :param db:
+        :return:
+        """
         self.db = db
 
-    def iterate(batch_size=8):
+    def iterate(self, batch_size=8):
+        """
+        Single thread iteration through the data
+        :param batch_size:
+        :return:
+        """
+        raise NotImplementedError()
+
+    def next_batch(self, batch_size=8):
+        """
+        Pull the next block of data out of the database
+        :param batch_size:
+        :return:
+        """
         raise NotImplementedError()
 
     def build_db(self, db, folder, shape=None):
-        if shape is None:
-            raise AssertionError("Parameter shape has to be either an int or a tuple but cannot be None.")
+        """
+        Build a database to a file called db, from a folder called folder and resize to shape
+        :param db:
+        :param folder:
+        :param shape:
+        :return:
+        """
         raise NotImplementedError()
 
-    def db_exists(db):
+    def db_exists(self, db):
+        """
+        Check whether the db at a certain path is already existing
+        :param db:
+        :return:
+        """
         raise NotImplementedError()
 
-    def get_db_iterator(self, db):
+    def num_samples(self):
+        """
+        Should return the total number of samples in the database. Usually the size of the first axis of the whole
+        data block
+        :return:
+        """
         raise NotImplementedError()
 
-    def parse_folder(self, folder_name):
+    @staticmethod
+    def parse_folder(folder_name):
         """
         Parse a folder of images and read a structure of files
+        :param folder_name:
+        :return:
         """
         classes = {}
-        for _dir in [o for o in os.listdir(folder_name) if os.path.isdir(os.path.join(folder_name,o))]:
+        for _dir in [o for o in os.listdir(folder_name) if os.path.isdir(os.path.join(folder_name, o))]:
             # List files
             classes[_dir] = []
-            for f in [f for f in os.listdir(os.path.join(folder_name, _dir)) if os.path.isfile(os.path.join(folder_name,_dir,f))]:
+            for f in [f for f in os.listdir(os.path.join(folder_name, _dir)) if
+                      os.path.isfile(os.path.join(folder_name, _dir, f))]:
                 p = os.path.join(folder_name, _dir, f)
-                if self.is_image(p):
+                if ClassDatabaseBuilder.is_image(p):
                     classes[_dir].append(p)
         return classes
 
-
-    def is_image(self, image_path):
+    @staticmethod
+    def is_image(image_path):
+        """
+        Check if a file is an image
+        :param image_path:
+        :return:
+        """
         p = image_path
         return p.endswith(".jpg") or p.endswith(".jpeg") or p.endswith(".JPG") or p.endswith(".png")
 
-    def read_image(self, image_path, resize=None):
+    @staticmethod
+    def read_image(image_path, resize=None):
         """
         Read a single image into a numpy memory
+        :param image_path:
+        :param resize:
+        :return:
         """
         image_obj = Image.open(image_path)
         if resize:
             image_obj = image_obj.resize(resize)
 
-        return np.array(image_obj).transpose((2,0,1))
-
-
+        return np.array(image_obj).transpose((2, 0, 1))
 
 
 class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
+    """
+    Class to read images from a folder and feed a HDF5 database
+    """
     def __init__(self):
         super(HDF5ClassDatabaseBuilder, self).__init__()
+        self.row_idx = 0
+        self.db = None
+        self.f = None
 
     def db_exists(self, db):
+        # HDF5 is file based
         return os.path.isfile(db)
 
-    def get_db_iterator(self, db):
-        f = h5py.File(db)
+    def num_samples(self):
+        if self.f is None:
+            raise AssertionError("Please call setup_read first.")
+
+        assert self.f["labels"].shape[0] == self.f["images"].shape[0]
+
+        return self.f["images"].shape[0]
+
+    def setup_read(self, db):
+        super(HDF5ClassDatabaseBuilder, self).setup_read(db)
+        self.row_idx = 0
+        if self.db is None:
+            raise AssertionError("Please call build first to assign a DB")
+        self.f = h5py.File(self.db)
+
+    def next_batch(self, batch_size=8):
+        if not self.db:
+            raise AssertionError("DB not set. Please call setup_read() before calling next_batch()")
+
+        assert self.f["labels"].shape[0] == self.f["images"].shape[0]
+
+        if self.row_idx + batch_size > self.f["labels"].shape[0]:
+            self.row_idx = 0
+
+        start_idx = self.row_idx
+        self.row_idx += batch_size
+
+        return self.f["images"][start_idx:start_idx + batch_size], self.f["labels"][start_idx:start_idx + batch_size]
 
     def iterate(self, batch_size=8):
         """
-        Generator to walk data
+        Iterate single-threadedly
+        :param batch_size: The batchsize to use
+        :return:
         """
-        if self.db is None:
-            raise AssertionError("Please call build_read first to assign a DB")
+        if self.f is None:
+            raise AssertionError("Please call setup_read first.")
 
-        f = h5py.File(self.db)
-        assert f["labels"].shape[0] == f["images"].shape[0]
+        assert self.f["labels"].shape[0] == self.f["images"].shape[0]
 
-        n = f["images"].shape[0]
+        n = self.f["images"].shape[0]
 
         for start_idx in range(0, n - batch_size + 1, batch_size):
-            yield f["images"][start_idx:start_idx+batch_size], f["labels"][start_idx:start_idx+batch_size],
+            yield self.f["images"][start_idx:start_idx + batch_size], self.f["labels"][start_idx:start_idx + batch_size]
 
-
-    def build_db(self, db, folder, shape):
+    def build_db(self, db, folder, shape=None):
         """
-        Parse RGB images and build a db out of it
-        TODO:
-        Support grayscale
+        Parse a folder and build the HDF5 database
+        TODO Support grayscale
+        :param db: The target db file to create
+        :param folder: The folder to parse
+        :param shape: Resize shape
+        :return:
         """
         logger.info("Start building database")
-        classes = self.parse_folder(folder)
         f = h5py.File(db)
 
-        classes = self.parse_folder(folder)
+        classes = HDF5ClassDatabaseBuilder.parse_folder(folder)
         num_classes = len(classes)
 
-        image_ds = f.create_dataset('images', (0,0,0,0), maxshape=(None,None, None, None ), dtype=np.uint8)
-        label_ds = f.create_dataset('labels', (0,0), maxshape=(None,None ), dtype=np.uint8)
+        image_ds = f.create_dataset('images', (0, 0, 0, 0), maxshape=(None, None, None, None), dtype=np.uint8)
+        label_ds = f.create_dataset('labels', (0, 0), maxshape=(None, None), dtype=np.uint8)
 
         label_idx = 0
         row_ptr = 0
@@ -119,7 +206,7 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
             images = None
             labels = None
             for image_path in classes[cls]:
-                image_array = np.expand_dims(self.read_image(image_path, resize=shape).copy(), 0)
+                image_array = np.expand_dims(HDF5ClassDatabaseBuilder.read_image(image_path, resize=shape).copy(), 0)
                 if images is None:
                     images = image_array
                 else:
@@ -136,7 +223,7 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
 
             image_shape = image_ds.shape
             label_shape = label_ds.shape
-            assert(image_shape[0] == label_shape[0])
+            assert (image_shape[0] == label_shape[0])
             if label_idx == 0:
                 image_ds.resize(images.shape)
                 image_ds[:] = images
