@@ -32,21 +32,28 @@ class MultiProcessor(object):
         self.batch_size = batch_size
         self.lock = Lock()
 
-    def iterate(self):
+    def iterate(self, batches=None):
         """
         Iterate through the dataset by pulling all items out of the queue
         :return:
         """
-        num_batches = self.db.num_samples() / self.batch_size
-        for _ in range(num_batches):
+        if batches is None:
+            batches = self.db.num_samples() // self.batch_size
+
+        if batches == 0:
+            raise UserWarning("Batchsize %i is higher than total number of samples in the dataset %i" % (self.batch_size, self.db.num_samples))
+
+        for _ in range(batches):
             yield self.q.get(block=True)
 
-    def start_daemons(self, parallelism=2):
+    def start_daemons(self, parallelism=1):
         """
         Start all daemons
         :param parallelism: int degree of parallelization over various processes
         :return:
         """
+        if parallelism != 1:
+            raise ValueError("Currently we only support one prefetching process")
         for pp in range(parallelism):
             args = (self.q, self.func, self.db, self.batch_size, self.lock)
             p = Process(target=thread_proc, args=args)

@@ -1,22 +1,24 @@
 import os, sys, inspect
-from mince.database_builder import HDF5ClassDatabaseBuilder
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-# Our db path
-db = '/Users/sebastian/Desktop/mince.h5'
+from mince.database_builder import HDF5ClassDatabaseBuilder
+from mince.database_reader import HDF5DatabaseReader
 
-# New builder object
-builder = HDF5ClassDatabaseBuilder()
+"""
+Main program
+"""
+if __name__ == "__main__":
+    # Our db path
+    db = '/Users/sebastian/Desktop/mince'
+    # Build a db
+    files = HDF5ClassDatabaseBuilder.build(db, '/Users/sebastian/Desktop/mince_data_small', shape=(224, 224), force=True)
 
-# Build a db
-builder.build(db, '/Users/sebastian/Desktop/mince_data', shape=(224, 224), force=True)
-
-# Setup the reader for read access
-builder.setup_read(db)
-# And iterate through the data singlethreadedly
-for images, labels in builder.iterate(batch_size=4):
-    print labels
-    print images.mean()
+    print files
+    reader = HDF5DatabaseReader()
+    reader.setup_read(files[0], True)
+    for batch in reader.iterate(batch_size=8):
+        input, label = batch
+        print input.mean()
