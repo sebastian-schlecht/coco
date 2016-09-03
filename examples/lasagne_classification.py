@@ -15,7 +15,7 @@ sys.path.insert(0, parentdir)
 from mince.database_builder import HDF5ClassDatabaseBuilder
 from mince.database_reader import HDF5DatabaseReader
 from mince.multiprocess import MultiProcessor
-from mince.networks import LeNet
+from mince.networks import lenet
 
 
 """
@@ -40,16 +40,17 @@ if __name__ == "__main__":
     Mince part
     """
     print "Building database"
+    # n classes in db
     n_classes = 3
-    # Target db location
+    # Target db location prefix
     db = '/Users/sebastian/Desktop/mince'
     # Build a db from a set of images
     # In case force=false, we do not recreate the db if it's already there!
-    databases = HDF5ClassDatabaseBuilder.build(db, '/Users/sebastian/Desktop/mince_data_small', shape=(224, 224), force=True)
+    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, '/Users/sebastian/Desktop/mince_data_small', shape=(224, 224), force=True)
     batch_size = 1
     # Prepare the training reader for read access. This is necessary when combining it with multiprocessors
     train_reader = HDF5DatabaseReader()
-    train_reader.setup_read(databases[0], randomize_access=True)
+    train_reader.setup_read(train_db, randomize_access=True)
     # Create a multiprocessor object which manages data loading and transformation daemons
     processor = MultiProcessor(train_reader, func=process, batch_size=batch_size)
     # Start the daemons and tell them to use the databuilder we just setup to pull data from disk
@@ -57,7 +58,7 @@ if __name__ == "__main__":
 
     # We also need to read validation data. It's way less so we just do in in the main thread
     val_reader = HDF5DatabaseReader()
-    val_reader.setup_read(databases[1])
+    val_reader.setup_read(val_db)
 
     """
     Lasagne part
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
     # Careful. We feed one-hot coded labels
     target_var = T.imatrix('targets')
-    network = LeNet.build(input_var, n_classes)
+    network = lenet(input_var, n_classes)
 
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)

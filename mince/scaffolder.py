@@ -1,2 +1,0 @@
-class Scaffolder(object):
-    pass
