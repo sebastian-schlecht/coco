@@ -88,16 +88,16 @@ def pad_crop(image, padsize=4):
     :param padsize:
     :return:
     """
-    cx = np.random.randint(2*padsize)
-    cy = np.random.randint(2*padsize)
+    cx = np.random.randint(2 * padsize)
+    cy = np.random.randint(2 * padsize)
 
     if len(image.shape) == 3:
         padded = np.pad(image, ((0, 0), (padsize, padsize), (padsize, padsize)))
         x = image.shape[2]
         y = image.shape[1]
-        return padded[:,cy:cy+y, cx:cx+x]
+        return padded[:, cy:cy + y, cx:cx + x]
     else:
         padded = np.pad(image, ((padsize, padsize), (padsize, padsize)))
         x = image.shape[1]
         y = image.shape[0]
-        return padded[cy:cy+y, cx:cx+x]
+        return padded[cy:cy + y, cx:cx + x]
