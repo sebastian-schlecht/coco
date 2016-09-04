@@ -27,24 +27,32 @@ class MultiProcessor(object):
     def __init__(self, db, func=None, batch_size=8, qsize=20):
         self.func = func
         self.db = db
+        if not self.db.can_read:
+            raise AssertionError("Database reader is not setup for read access. Please call setup_read() first on the reader instance.")
         self.q = Queue(maxsize=qsize)
         self.processes = []
         self.batch_size = batch_size
         self.lock = Lock()
+        self.daemonized = False
 
     def iterate(self, batches=None):
         """
         Iterate through the dataset by pulling all items out of the queue
         :return:
         """
-        if batches is None:
-            batches = self.db.num_samples() // self.batch_size
+        if self.daemonized == True:
+            if batches is None:
+                batches = self.db.num_samples() // self.batch_size
 
-        if batches == 0:
-            raise UserWarning("Batchsize %i is higher than total number of samples in the dataset %i" % (self.batch_size, self.db.num_samples))
+            if batches == 0:
+                raise UserWarning("Batchsize %i is higher than total number of samples in the dataset %i" % (self.batch_size, self.db.num_samples))
 
-        for _ in range(batches):
-            yield self.q.get(block=True)
+            for _ in range(batches):
+                yield self.q.get(block=True)
+        else:
+            for batch in self.db.iterate(batch_size=self.batch_size, func=self.func):
+                yield batch
+
 
     def start_daemons(self, parallelism=1):
         """
@@ -52,8 +60,11 @@ class MultiProcessor(object):
         :param parallelism: int degree of parallelization over various processes
         :return:
         """
+        self.daemonized = True
+
         if parallelism != 1:
             raise ValueError("Currently we only support one prefetching process")
+
         for pp in range(parallelism):
             args = (self.q, self.func, self.db, self.batch_size, self.lock)
             p = Process(target=thread_proc, args=args)

@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.DEBUG)
 class DatabaseReader(object):
     def __init__(self):
         self.db = None
+        self.can_read = False
         self.randomize_access = False
 
     def setup_read(self, db, randomize_access=False):
@@ -21,6 +22,7 @@ class DatabaseReader(object):
         """
         self.db = db
         self.randomize_access = randomize_access
+        self.can_read = True
 
     def iterate(self, batch_size=8, func=None):
         """
@@ -81,8 +83,6 @@ class HDF5DatabaseReader(DatabaseReader):
     def setup_read(self, db, randomize_access=False):
         super(HDF5DatabaseReader, self).setup_read(db)
         self.row_idx = 0
-        if self.db is None:
-            raise AssertionError("Please call build first to assign a DB")
         self.f = h5py.File(self.db)
 
         self.randomize_access = randomize_access
@@ -91,7 +91,7 @@ class HDF5DatabaseReader(DatabaseReader):
 
     def next_batch(self, batch_size=8):
         if not self.db:
-            raise AssertionError("DB not set. Please call setup_read() before calling next_batch()")
+            raise AssertionError("Database not set. Please call setup_read() before calling next_batch().")
 
         assert self.f["labels"].shape[0] == self.f["images"].shape[0]
 

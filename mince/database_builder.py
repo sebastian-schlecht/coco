@@ -15,8 +15,6 @@ class ClassDatabaseBuilder(object):
     def __init__(self):
         raise Exception("This class is purely static.")
 
-
-
     @classmethod
     def build(cls, db, folder, shape=None, partition=(0.7, 0.3, None)):
         """
@@ -227,4 +225,3 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
             pass
 
         return files
-

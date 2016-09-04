@@ -40,25 +40,36 @@ if __name__ == "__main__":
     Mince part
     """
     print "Building database"
-    # n classes in db
-    n_classes = 3
-    # Target db location prefix
+
+        # Target db location prefix
     db = '/Users/sebastian/Desktop/mince'
+
+    # Folder holding subfolders, one for each class
+    folder = '/Users/sebastian/Desktop/mince_data_small'
+
+    # Use helper to parse the folder
+    classes = HDF5ClassDatabaseBuilder.parse_folder(folder)
+    n_classes = len(classes)
+
     # Build a db from a set of images
     # In case force=false, we do not recreate the db if it's already there!
-    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, '/Users/sebastian/Desktop/mince_data_small', shape=(224, 224), force=True)
+    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(224, 224), force=True)
+
+    # Batch size to use during training
     batch_size = 1
     # Prepare the training reader for read access. This is necessary when combining it with multiprocessors
     train_reader = HDF5DatabaseReader()
     train_reader.setup_read(train_db, randomize_access=True)
     # Create a multiprocessor object which manages data loading and transformation daemons
-    processor = MultiProcessor(train_reader, func=process, batch_size=batch_size)
+    train_processor = MultiProcessor(train_reader, func=process, batch_size=batch_size)
     # Start the daemons and tell them to use the databuilder we just setup to pull data from disk
-    processor.start_daemons()
+    train_processor.start_daemons()
 
     # We also need to read validation data. It's way less so we just do in in the main thread
+    # and don't start any daemons
     val_reader = HDF5DatabaseReader()
     val_reader.setup_read(val_db)
+    val_processor = MultiProcessor(val_reader, batch_size=batch_size)
 
     """
     Lasagne part
@@ -114,7 +125,7 @@ if __name__ == "__main__":
         train_err = 0
         train_batches = 0
         start_time = time.time()
-        for batch in processor.iterate():
+        for batch in train_processor.iterate():
             inputs, targets = batch
             print inputs.mean()
             err = train_fn(inputs, targets)
@@ -126,7 +137,7 @@ if __name__ == "__main__":
         val_err = 0
         val_acc = 0
         val_batches = 0
-        for batch in val_reader.iterate(batch_size=batch_size, func=process):
+        for batch in val_processor.iterate():
             inputs, targets = batch
             err, acc, pred = val_fn(inputs, targets)
             val_err += err
