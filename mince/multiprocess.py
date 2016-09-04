@@ -1,5 +1,7 @@
-from multiprocessing import Process, Queue, Lock
+from multiprocessing import Process, Queue, Lock, Manager, SyncManager
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 def thread_proc(queue, func, db, batch_size, lock):
     """
@@ -34,6 +36,7 @@ class MultiProcessor(object):
         self.batch_size = batch_size
         self.lock = Lock()
         self.daemonized = False
+        logger.debug("Creating multiprocessor instance with batchsize=%i and queue_size=%i", (batch_size, qsize))
 
     def iterate(self, batches=None):
         """
@@ -60,8 +63,8 @@ class MultiProcessor(object):
         :param parallelism: int degree of parallelization over various processes
         :return:
         """
+        logger.debug("Starting daemons with parallelism=%i", parallelism)
         self.daemonized = True
-
         if parallelism != 1:
             raise ValueError("Currently we only support one prefetching process")
 

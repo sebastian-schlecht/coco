@@ -8,10 +8,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class DatabaseReader(object):
-    def __init__(self):
+    def __init__(self, image_key="images", label_key="labels"):
         self.db = None
         self.can_read = False
         self.randomize_access = False
+
+        self.image_key = image_key
+        self.label_key = label_key
 
     def setup_read(self, db, randomize_access=False):
         """
@@ -76,9 +79,16 @@ class HDF5DatabaseReader(DatabaseReader):
         if self.f is None:
             raise AssertionError("Please call setup_read first.")
 
-        assert self.f["labels"].shape[0] == self.f["images"].shape[0]
+        if self.image_key not in self.f:
+            raise AssertionError("Key %s not found in database. Check your image key" % self.image_key)
 
-        return self.f["images"].shape[0]
+        if self.label_key not inf self.f
+            raise AssertionError("Key %s not found in database. Check your label key" % self.label_key)
+
+        if self.f[self.label_key].shape[0] != self.f[self.image_key].shape[0]:
+            raise AssertionError("The number of elements in the images blob does not match the number of elements in the labels blob.")
+
+        return self.f[self.image_key].shape[0]
 
     def setup_read(self, db, randomize_access=False):
         super(HDF5DatabaseReader, self).setup_read(db)
@@ -93,9 +103,9 @@ class HDF5DatabaseReader(DatabaseReader):
         if not self.db:
             raise AssertionError("Database not set. Please call setup_read() before calling next_batch().")
 
-        assert self.f["labels"].shape[0] == self.f["images"].shape[0]
+        assert self.f[self.label_key].shape[0] == self.f[self.image_key].shape[0]
 
-        if self.row_idx + batch_size > self.f["labels"].shape[0]:
+        if self.row_idx + batch_size > self.f[self.label_key].shape[0]:
             self.row_idx = 0
 
         start_idx = self.row_idx
@@ -103,9 +113,9 @@ class HDF5DatabaseReader(DatabaseReader):
 
         if self.randomize_access:
             perm = np.sort(self.permutation[start_idx:start_idx + batch_size]).tolist()
-            excerpt = self.f["images"][perm], self.f["labels"][perm]
+            excerpt = self.f[self.image_key][perm], self.f[self.label_key][perm]
         else:
-            excerpt = self.f["images"][start_idx:start_idx + batch_size], self.f["labels"][
+            excerpt = self.f[self.image_key][start_idx:start_idx + batch_size], self.f[self.label_key][
                                                                           start_idx:start_idx + batch_size]
 
         return excerpt
@@ -119,15 +129,15 @@ class HDF5DatabaseReader(DatabaseReader):
         if self.f is None:
             raise AssertionError("Please call setup_read first.")
 
-        assert self.f["labels"].shape[0] == self.f["images"].shape[0]
+        assert self.f[self.label_key].shape[0] == self.f[self.image_key].shape[0]
 
-        n = self.f["images"].shape[0]
+        n = self.f[self.image_key].shape[0]
 
         if n < batch_size:
             raise UserWarning("Batchisze %i is higher than total number of samples %i" % (batch_size, n))
 
         for start_idx in range(0, n - batch_size + 1, batch_size):
-            data,label = self.f["images"][start_idx:start_idx + batch_size], self.f["labels"][start_idx:start_idx + batch_size]
+            data,label = self.f[self.image_key][start_idx:start_idx + batch_size], self.f[self.label_key][start_idx:start_idx + batch_size]
             if func is not None:
                 data, label = func(data,label)
             yield data, label

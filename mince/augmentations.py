@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.ndimage.interpolation import zoom, rotate
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 def exp(image, level):
     """
@@ -10,6 +12,8 @@ def exp(image, level):
     :return: Image
 
     """
+    if image.dtype != np.uint8:
+        logger.warn("Datatype of input image is not uint8. Are you sure that you're calling exp() on the correct array?")
     image = image.copy()
 
     def truncate(v):
