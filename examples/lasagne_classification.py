@@ -56,7 +56,7 @@ if __name__ == "__main__":
     train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(224, 224), force=False)
 
     # Batch size to use during training
-    batch_size = 1
+    batch_size = 64
     # Prepare the training reader for read access. This is necessary when combining it with multiprocessors
     train_reader = HDF5DatabaseReader()
     train_reader.setup_read(train_db, randomize_access=False)
