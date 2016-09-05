@@ -75,8 +75,12 @@ class ClassDatabaseBuilder(object):
         image_obj = Image.open(image_path)
         if resize:
             image_obj = image_obj.resize(resize)
-
-        return np.array(image_obj).transpose((2, 0, 1))
+        
+        image = np.array(image_obj)
+        if len(image.shape) == 3:
+            return image.transpose((2, 0, 1))
+        else:
+            return image
 
 
 class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
@@ -98,9 +102,14 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
         classes = file_list
         num_classes = len(classes)
 
-        image_ds = f.create_dataset('images', (0, 0, 0, 0), maxshape=(None, None, None, None), dtype=np.uint8)
-        label_ds = f.create_dataset('labels', (0, 0), maxshape=(None, None), dtype=np.uint8)
-
+        image_ds = f.create_dataset('images', (0, 0, 0, 0), 
+                                    maxshape=(None, None, None, None), 
+                                    dtype=np.uint8, 
+                                    chunks=(BLOCK_SIZE, 3 , shape[0], shape[1]))
+        label_ds = f.create_dataset('labels', (0, 0), 
+                                    maxshape=(None, None), 
+                                    dtype=np.uint8,
+                                    chunks=(BLOCK_SIZE, num_classes))
         label_idx = 0
         row_ptr = 0
         od = collections.OrderedDict(sorted(classes.items()))
@@ -116,12 +125,17 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
         random.shuffle(item_list)
         BLOCK_SIZE = min(BLOCK_SIZE, len(item_list))
         for index in range(0,len(item_list) - BLOCK_SIZE + 1, BLOCK_SIZE):
+            logger.debug("Processing block %i out of %i" % (index, len(item_list) - BLOCK_SIZE + 1))
             block = item_list[index:index + BLOCK_SIZE]
             # Read images
             images = None
             labels = None
             for label_idx, image_path in block:
                 image_array = np.expand_dims(HDF5ClassDatabaseBuilder.read_image(image_path, resize=shape).copy(), 0)
+                   
+                if image_array is None or len(image_array.shape) != 4:
+                    continue
+                
                 if images is None:
                     images = image_array
                 else:
@@ -202,6 +216,8 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
         processes = []
         for index in range(len(partition)):
             filename = "%s-%s.h5" % (db, PARTS[index])
+            if partition[index]:
+                files.append(filename)
 
             if cls.db_exists(filename):
                 if force:
@@ -217,11 +233,9 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
                 p = Process(target=cls._build_db_for_file_list, args=(filename, classes, shape))
                 p.daemon = True
                 p.start()
-                p.join()
                 processes.append(p)
-                files.append(filename)
         for p in processes:
-            #p.join()
-            pass
+            p.join()
+
 
         return files

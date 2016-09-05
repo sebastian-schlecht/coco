@@ -39,6 +39,10 @@ class MultiProcessor(object):
         self.daemonized = False
         logger.debug("Creating multiprocessor instance with batchsize=%i and queue_size=%i" % (batch_size, qsize))
 
+    def num_samples(self):
+        return self.db.num_samples()
+        
+    
     def iterate(self, batches=None):
         """
         Iterate through the dataset by pulling all items out of the queue

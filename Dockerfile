@@ -25,3 +25,4 @@ RUN sudo echo -e "[global]\nfloatX = float32\ndevice = gpu0\noptimizer = fast_ru
 RUN sudo apt-get install -y libhdf5-dev
 RUN pip install h5py
 RUN pip install jupyter
+RUN pip install virtualenv

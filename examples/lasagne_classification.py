@@ -39,13 +39,13 @@ if __name__ == "__main__":
     """
     Mince part
     """
-    print "Building database"
+    print "Building and reading database"
 
     # Target db location prefix
-    db = '/Users/sebastian/Desktop/mince'
+    db = '/data/data/food-101'
 
     # Folder holding subfolders, one for each class
-    folder = '/Users/sebastian/Desktop/mince_data_small'
+    folder = '/nas/01_Datasets/Food/food-101/images'
 
     # Use helper to parse the folder
     classes = HDF5ClassDatabaseBuilder.parse_folder(folder)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     batch_size = 1
     # Prepare the training reader for read access. This is necessary when combining it with multiprocessors
     train_reader = HDF5DatabaseReader()
-    train_reader.setup_read(train_db, randomize_access=True)
+    train_reader.setup_read(train_db, randomize_access=False)
     # Create a multiprocessor object which manages data loading and transformation daemons
     train_processor = MultiProcessor(train_reader, func=process, batch_size=batch_size)
     # Start the daemons and tell them to use the databuilder we just setup to pull data from disk
@@ -119,19 +119,32 @@ if __name__ == "__main__":
     print "Starting training"
 
     n_epochs = 50
+    
+    bt = 0
+    bidx = 0
 
     for epoch in range(n_epochs):
+        print "Training Epoch %i" % (epoch + 1)
         # In each epoch, we do a full pass over the training data:
         train_err = 0
         train_batches = 0
         start_time = time.time()
         for batch in train_processor.iterate():
+            bts = time.time()
             inputs, targets = batch
-            print inputs.mean()
             err = train_fn(inputs, targets)
-            print err
             train_err += err
             train_batches += 1
+            
+            bte = time.time()
+            bt += (bte - bts)
+            bidx += 1
+            if bidx == 20 and epoch == 0:
+                tpb = bt / bidx
+                print "Average time per forward/backward pass: " + str(tpb)
+                eta = time.time() + n_epochs * (tpb * (train_processor.num_samples()/batch_size))
+                localtime = time.asctime( time.localtime(eta) )
+                print "ETA: ", localtime
 
         # And a full pass over the validation data:
         val_err = 0
