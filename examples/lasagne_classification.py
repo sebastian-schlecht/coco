@@ -15,7 +15,7 @@ sys.path.insert(0, parentdir)
 from mince.database_builder import HDF5ClassDatabaseBuilder
 from mince.database_reader import HDF5DatabaseReader
 from mince.multiprocess import MultiProcessor
-from mince.networks import lenet
+from mince.networks import resnet_50
 
 
 """
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     """
     print "Building database"
 
-        # Target db location prefix
+    # Target db location prefix
     db = '/Users/sebastian/Desktop/mince'
 
     # Folder holding subfolders, one for each class
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     # Build a db from a set of images
     # In case force=false, we do not recreate the db if it's already there!
-    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(224, 224), force=True)
+    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(224, 224), force=False)
 
     # Batch size to use during training
     batch_size = 1
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     # Careful. We feed one-hot coded labels
     target_var = T.imatrix('targets')
-    network = lenet(input_var, n_classes)
+    network = resnet_50(input_var, n_classes)
 
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)

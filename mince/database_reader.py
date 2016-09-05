@@ -82,7 +82,7 @@ class HDF5DatabaseReader(DatabaseReader):
         if self.image_key not in self.f:
             raise AssertionError("Key %s not found in database. Check your image key" % self.image_key)
 
-        if self.label_key not inf self.f
+        if self.label_key not in self.f:
             raise AssertionError("Key %s not found in database. Check your label key" % self.label_key)
 
         if self.f[self.label_key].shape[0] != self.f[self.image_key].shape[0]:

@@ -1,4 +1,5 @@
-from multiprocessing import Process, Queue, Lock, Manager, SyncManager
+from multiprocessing import Process, Queue, Lock, Manager
+import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -36,7 +37,7 @@ class MultiProcessor(object):
         self.batch_size = batch_size
         self.lock = Lock()
         self.daemonized = False
-        logger.debug("Creating multiprocessor instance with batchsize=%i and queue_size=%i", (batch_size, qsize))
+        logger.debug("Creating multiprocessor instance with batchsize=%i and queue_size=%i" % (batch_size, qsize))
 
     def iterate(self, batches=None):
         """
