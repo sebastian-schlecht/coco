@@ -15,20 +15,20 @@ sys.path.insert(0, parentdir)
 from mince.database_builder import HDF5ClassDatabaseBuilder
 from mince.database_reader import HDF5DatabaseReader
 from mince.multiprocess import MultiProcessor
-from mince.networks import resnet_50
+from mince.networks import resnet_50, lenet
 
 
 """
 Preprocessor function
 """
 
+mean = np.load("/data/data/food-101-train.npy")
+
 
 def process(images, labels):
     images = images.astype(theano.config.floatX)
-    images[:, 0, :, :] -= 142.9
-    images[:, 1, :, :] -= 115.7
-    images[:, 2, :, :] -= 89.52
-
+    images -= mean
+    
     return images, labels
 
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     # and don't start any daemons
     val_reader = HDF5DatabaseReader()
     val_reader.setup_read(val_db)
-    val_processor = MultiProcessor(val_reader, batch_size=batch_size)
+    val_processor = MultiProcessor(val_reader, batch_size=batch_size, func=process)
 
     """
     Lasagne part
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.nesterov_momentum(
-        loss, params, learning_rate=0.001, momentum=0.9)
+        loss, params, learning_rate=0.1, momentum=0.9)
 
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
