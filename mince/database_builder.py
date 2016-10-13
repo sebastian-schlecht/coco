@@ -1,6 +1,6 @@
 import h5py
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 import logging
 import collections
@@ -16,7 +16,7 @@ class ClassDatabaseBuilder(object):
         raise Exception("This class is purely static.")
 
     @classmethod
-    def build(cls, db, folder, shape=None, partition=(0.7, 0.3, None)):
+    def build(cls, db, folder, shape=None, partition=(0.7, 0.3, None), method='crop'):
         """
         Build a database to a file called db, from a folder called folder and resize to shape
         :param db:
@@ -65,7 +65,7 @@ class ClassDatabaseBuilder(object):
         return p.endswith(".jpg") or p.endswith(".jpeg") or p.endswith(".JPG") or p.endswith(".png")
 
     @classmethod
-    def read_image(cls, image_path, resize=None):
+    def read_image(cls, image_path, resize=None, method='crop'):
         """
         Read a single image into a numpy memory
         :param image_path:
@@ -74,7 +74,12 @@ class ClassDatabaseBuilder(object):
         """
         image_obj = Image.open(image_path)
         if resize:
-            image_obj = image_obj.resize(resize)
+            if method == 'crop':
+                image_obj = ImageOps.fit(image_obj, resize)
+            elif method == 'squash':
+                image_obj = image_obj.resize(resize)
+            else:
+                raise NotImplementedError()
         
         image = np.array(image_obj)
         if len(image.shape) == 3:

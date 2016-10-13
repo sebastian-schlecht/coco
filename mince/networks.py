@@ -128,3 +128,73 @@ def resnet_50(input_var=None, n_classes=10):
         nonlinearity=softmax)
 
     return network
+
+
+
+
+
+def resnet_34(input_var=None, n_classes=10):
+    
+    # create a residual learning building block with two stacked 3x3 convlayers as in paper
+    def residual_block(l, increase_dim=False, projection=False):
+        input_num_filters = l.output_shape[1]
+        if increase_dim:
+            first_stride = (2,2)
+            out_num_filters = input_num_filters*2
+        else:
+            first_stride = (1,1)
+            out_num_filters = input_num_filters
+
+        stack_1 = batch_norm(ConvLayer(l, num_filters=out_num_filters, filter_size=(3,3), stride=first_stride, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+        stack_2 = batch_norm(ConvLayer(stack_1, num_filters=out_num_filters, filter_size=(3,3), stride=(1,1), nonlinearity=None, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+        
+        # add shortcut connections
+        if increase_dim:
+            if projection:
+                # projection shortcut, as option B in paper
+                projection = batch_norm(ConvLayer(l, num_filters=out_num_filters, filter_size=(1,1), stride=(2,2), nonlinearity=None, pad='same', b=None, flip_filters=False))
+                block = NonlinearityLayer(ElemwiseSumLayer([stack_2, projection]),nonlinearity=rectify)
+            else:
+                # identity shortcut, as option A in paper
+                identity = ExpressionLayer(l, lambda X: X[:, :, ::2, ::2], lambda s: (s[0], s[1], s[2]//2, s[3]//2))
+                padding = PadLayer(identity, [out_num_filters//4,0,0], batch_ndim=1)
+                block = NonlinearityLayer(ElemwiseSumLayer([stack_2, padding]),nonlinearity=rectify)
+        else:
+            block = NonlinearityLayer(ElemwiseSumLayer([stack_2, l]),nonlinearity=rectify)
+        
+        return block
+
+    # Building the network
+    l_in = InputLayer(shape=(None, 3, 224, 224), input_var=input_var)
+
+    # First batch normalized layer and pool
+    l = batch_norm(ConvLayer(l_in, num_filters=64, filter_size=(7,7), stride=(2,2), nonlinearity=rectify, W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+    l = PoolLayer(l, pool_size=(3,3), stride=(2, 2))
+    
+    for _ in range(3):
+        l = residual_block(l)
+    
+    l = residual_block(l, increase_dim=True)
+    for _ in range(1,4):
+        l = residual_block(l)
+        
+    l = residual_block(l, increase_dim=True)
+    for _ in range(1,6):
+        l = residual_block(l)
+        
+    l = residual_block(l, increase_dim=True)
+    for _ in range(1,3):
+        l = residual_block(l)
+    
+    
+    # average pooling
+    l = GlobalPoolLayer(l)
+
+    # fully connected layer
+    network = DenseLayer(
+            l, num_units=n_classes,
+            W=lasagne.init.HeNormal(),
+            nonlinearity=softmax)
+
+    return network
+

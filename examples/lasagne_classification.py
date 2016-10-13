@@ -1,3 +1,5 @@
+import numpy as np
+np.random.seed(42)
 import os, sys, inspect, time
 # This example requires theano & lasagne
 import theano
@@ -14,8 +16,9 @@ sys.path.insert(0, parentdir)
 
 from mince.database_builder import HDF5ClassDatabaseBuilder
 from mince.database_reader import HDF5DatabaseReader
+from mince.augmentations import rot_zoom_crop, mult_rgb
 from mince.multiprocess import MultiProcessor
-from mince.networks import resnet_50, lenet
+from mince.networks import resnet_50, lenet, resnet_34
 
 
 """
@@ -26,10 +29,44 @@ mean = np.load("/data/data/food-101-train.npy")
 
 
 def process(images, labels):
-    images = images.astype(theano.config.floatX)
-    images -= mean
+    w = 224
+    h = 224
+    images = images.astype(theano.config.floatX).copy()
+    images_cropped = np.zeros((images.shape[0],images.shape[1], h,w),dtype=theano.config.floatX)
     
-    return images, labels
+    for i in range(images.shape[0]):
+        images[i] -= mean
+        cy = 16
+        cx = 16
+        images_cropped[i] = images[i,:,cy:cy+h,cx:cx+w]
+
+    return images_cropped, labels
+
+def augment(images, labels):
+    w = 224
+    h = 224
+    
+    # Convert
+    images = images.astype(theano.config.floatX).copy()
+    images_cropped = np.zeros((images.shape[0],images.shape[1], h,w),dtype=theano.config.floatX)
+    for i in range(images.shape[0]):
+        p = np.random.randint(1)
+        if p == 1:
+            images[i] = images[i,:,:,::-1]
+        
+        # Rotate
+        angle = np.random.randint(-5, 5)
+        images[i] = rot_zoom_crop(images[i],angle, 1)
+        
+        # Sub mean    
+        images[i] -= mean
+        
+        # Crop
+        cy = np.random.randint(0, 32)
+        cx = np.random.randint(0, 32)
+        images_cropped[i] = images[i,:,cy:cy+h,cx:cx+w]
+    
+    return images_cropped, labels
 
 
 """
@@ -53,7 +90,7 @@ if __name__ == "__main__":
 
     # Build a db from a set of images
     # In case force=false, we do not recreate the db if it's already there!
-    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(224, 224), force=False)
+    train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(256, 256), force=False)
 
     # Batch size to use during training
     batch_size = 64
@@ -61,7 +98,7 @@ if __name__ == "__main__":
     train_reader = HDF5DatabaseReader()
     train_reader.setup_read(train_db, randomize_access=False)
     # Create a multiprocessor object which manages data loading and transformation daemons
-    train_processor = MultiProcessor(train_reader, func=process, batch_size=batch_size)
+    train_processor = MultiProcessor(train_reader, func=augment, batch_size=batch_size)
     # Start the daemons and tell them to use the databuilder we just setup to pull data from disk
     train_processor.start_daemons()
 
@@ -92,8 +129,9 @@ if __name__ == "__main__":
     loss = loss + l2_penalty
 
     params = lasagne.layers.get_all_params(network, trainable=True)
+    lr = theano.shared(lasagne.utils.floatX(0.1))
     updates = lasagne.updates.nesterov_momentum(
-        loss, params, learning_rate=0.1, momentum=0.9)
+        loss, params, learning_rate=lr, momentum=0.9)
 
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
@@ -118,10 +156,17 @@ if __name__ == "__main__":
     """
     print "Starting training"
 
-    n_epochs = 50
+    n_epochs = 40
     
     bt = 0
     bidx = 0
+    
+    learning_schedule = {
+        0: 0.005,
+        1: 0.1,
+        25: 0.01,
+        35: 0.001
+    }
 
     for epoch in range(n_epochs):
         print "Training Epoch %i" % (epoch + 1)
@@ -129,6 +174,9 @@ if __name__ == "__main__":
         train_err = 0
         train_batches = 0
         start_time = time.time()
+        if epoch in learning_schedule:
+            print "Setting LR to: ", learning_schedule[epoch]
+            lr.set_value(learning_schedule[epoch])
         for batch in train_processor.iterate():
             bts = time.time()
             inputs, targets = batch
@@ -163,3 +211,5 @@ if __name__ == "__main__":
         print("  training loss:\t\t{:.6f}".format(train_err / train_batches))
         print("  validation loss:\t\t{:.6f}".format(val_err / val_batches))
         print("  validation accuracy:\t\t{:.2f} %".format(val_acc / val_batches * 100))
+        # dump the network weights to a file :
+        np.savez('resnet50-food-101.npz', *lasagne.layers.get_all_param_values(network))
