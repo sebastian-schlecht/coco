@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 from scipy.ndimage.interpolation import zoom, rotate
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,8 @@ def flip_y(image):
 
 def rot_zoom_crop(image, a, f, order=0, prefilter=False):
     """
-    Rotate an image along a giv
+    Rotate an image according to a given angle and zoom according to a a given zoom factor
+    Expectes input in axis ordering [c, h, w]
     :param image:
     :param a:
     :param f:
@@ -64,13 +66,13 @@ def rot_zoom_crop(image, a, f, order=0, prefilter=False):
     else:
         ii_r = rotate(image, a, order=order, prefilter=prefilter)
 
-    h = int(image.shape[0] / f)
-    w = int(image.shape[1] / f)
-    s_fh = float(image.shape[0]) / float(h)
-    s_fw = float(image.shape[1]) / float(w)
+    h = int(image.shape[1] / f)
+    w = int(image.shape[2] / f)
+    s_fh = float(image.shape[1]) / float(h)
+    s_fw = float(image.shape[2]) / float(w)
 
-    cy = np.random.randint(0, image.shape[0] - h + 1)
-    cx = np.random.randint(0, image.shape[1] - w + 1)
+    cy = np.random.randint(0, image.shape[1] - h + 1)
+    cx = np.random.randint(0, image.shape[2] - w + 1)
 
     ii_c = ii_r[cy:cy + h, cx:cx + w, :]
     if len(image.shape) == 3:
@@ -83,6 +85,16 @@ def rot_zoom_crop(image, a, f, order=0, prefilter=False):
     ii_s = zoom(ii_s, z, order=order, prefilter=prefilter)
 
     return ii_s
+
+def mult_rgb(image, f=(1,1,1)):
+    """
+    Multiply color channels with a random number
+    Operates in place without a copy
+    """
+    image[0,:,:] *= f[0]
+    image[1,:,:] *= f[1]
+    image[2,:,:] *= f[2]
+    return image
 
 
 def pad_crop(image, padsize=4):
