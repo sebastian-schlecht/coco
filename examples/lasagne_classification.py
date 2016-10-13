@@ -1,4 +1,5 @@
 import numpy as np
+
 np.random.seed(42)
 import os, sys, inspect, time
 # This example requires theano & lasagne
@@ -14,60 +15,56 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-
 from coco.database_builder import HDF5ClassDatabaseBuilder
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
-from coco.networks import resnet_50
+from coco.networks import resnet
 from coco.augmentations import rot_zoom_crop
-
-
 
 """
 Preprocessor function
 """
-
-mean = np.load("/data/data/food-101-train.npy")
 
 
 def process(images, labels):
     w = 224
     h = 224
     images = images.astype(theano.config.floatX).copy()
-    images_cropped = np.zeros((images.shape[0],images.shape[1], h,w),dtype=theano.config.floatX)
-    
+    images_cropped = np.zeros((images.shape[0], images.shape[1], h, w), dtype=theano.config.floatX)
+
     for i in range(images.shape[0]):
-        images[i] -= mean
+        images[i] -= 128.
         cy = 16
         cx = 16
-        images_cropped[i] = images[i,:,cy:cy+h,cx:cx+w]
+        images_cropped[i] = images[i, :, cy:cy + h, cx:cx + w]
 
     return images_cropped, labels
+
 
 def augment(images, labels):
     w = 224
     h = 224
-    
+
     # Convert
     images = images.astype(theano.config.floatX).copy()
-    images_cropped = np.zeros((images.shape[0],images.shape[1], h,w),dtype=theano.config.floatX)
+    images_cropped = np.zeros((images.shape[0], images.shape[1], h, w), dtype=theano.config.floatX)
     for i in range(images.shape[0]):
         p = np.random.randint(1)
         if p == 1:
-            images[i] = images[i,:,:,::-1]
-        
+            images[i] = images[i, :, :, ::-1]
+
         # Rotate
         angle = np.random.randint(-5, 5)
-        images[i] = rot_zoom_crop(images[i],angle, 1)
-        
+        images[i] = rot_zoom_crop(images[i], angle, 1)
+
         # Sub mean    
-        images[i] -= mean
-        
+        images[i] -= 128.
+
         # Crop
         cy = np.random.randint(0, 32)
         cx = np.random.randint(0, 32)
-        images_cropped[i] = images[i,:,cy:cy+h,cx:cx+w]
-    
+        images_cropped[i] = images[i, :, cy:cy + h, cx:cx + w]
+
     return images_cropped, labels
 
 
@@ -81,10 +78,10 @@ if __name__ == "__main__":
     print "Building and reading database"
 
     # Target db location prefix
-    db = '/data/data/food-101'
+    db = '/Users/sebastian/Desktop/coco'
 
     # Folder holding subfolders, one for each class
-    folder = '/nas/01_Datasets/Food/food-101/images'
+    folder = '/Users/sebastian/Desktop/coco_data'
 
     # Use helper to parse the folder
     classes = HDF5ClassDatabaseBuilder.parse_folder(folder)
@@ -95,7 +92,7 @@ if __name__ == "__main__":
     train_db, val_db = HDF5ClassDatabaseBuilder.build(db, folder, shape=(256, 256), force=False)
 
     # Batch size to use during training
-    batch_size = 64
+    batch_size = 16
     # Prepare the training reader for read access. This is necessary when combining it with multiprocessors
     train_reader = HDF5DatabaseReader()
     train_reader.setup_read(train_db, randomize_access=False)
@@ -119,7 +116,7 @@ if __name__ == "__main__":
 
     # Careful. We feed one-hot coded labels
     target_var = T.imatrix('targets')
-    network = resnet_50(input_var, n_classes)
+    network = resnet(input_var, n_classes, (1, 1, 1, 1))
 
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)
@@ -159,10 +156,10 @@ if __name__ == "__main__":
     print "Starting training"
 
     n_epochs = 40
-    
+
     bt = 0
     bidx = 0
-    
+
     learning_schedule = {
         0: 0.005,
         1: 0.1,
@@ -183,17 +180,18 @@ if __name__ == "__main__":
             bts = time.time()
             inputs, targets = batch
             err = train_fn(inputs, targets)
+            print err
             train_err += err
             train_batches += 1
-            
+
             bte = time.time()
             bt += (bte - bts)
             bidx += 1
             if bidx == 20 and epoch == 0:
                 tpb = bt / bidx
                 print "Average time per forward/backward pass: " + str(tpb)
-                eta = time.time() + n_epochs * (tpb * (train_processor.num_samples()/batch_size))
-                localtime = time.asctime( time.localtime(eta) )
+                eta = time.time() + n_epochs * (tpb * (train_processor.num_samples() / batch_size))
+                localtime = time.asctime(time.localtime(eta))
                 print "ETA: ", localtime
 
         # And a full pass over the validation data:
