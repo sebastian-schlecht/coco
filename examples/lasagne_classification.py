@@ -18,7 +18,7 @@ sys.path.insert(0, parentdir)
 from coco.database_builder import HDF5ClassDatabaseBuilder
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
-from coco.networks import resnet
+from coco.networks import resnet, thin_net
 from coco.augmentations import rot_zoom_crop
 
 """
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     # Careful. We feed one-hot coded labels
     target_var = T.imatrix('targets')
-    network = resnet(input_var, n_classes, (1, 1, 1, 1))
+    network = thin_net(input_var, n_classes)
 
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     bidx = 0
 
     learning_schedule = {
-        0: 0.005,
+        0: 0.1,
         1: 0.1,
         25: 0.01,
         35: 0.001
