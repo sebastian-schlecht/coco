@@ -4,8 +4,8 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from mince.database_builder import HDF5ClassDatabaseBuilder
-from mince.database_reader import HDF5DatabaseReader
+from coco.database_builder import HDF5ClassDatabaseBuilder
+from coco.database_reader import HDF5DatabaseReader
 
 """
 Main program

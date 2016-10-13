@@ -14,11 +14,13 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from mince.database_builder import HDF5ClassDatabaseBuilder
-from mince.database_reader import HDF5DatabaseReader
-from mince.augmentations import rot_zoom_crop, mult_rgb
-from mince.multiprocess import MultiProcessor
-from mince.networks import resnet_50, lenet, resnet_34
+
+from coco.database_builder import HDF5ClassDatabaseBuilder
+from coco.database_reader import HDF5DatabaseReader
+from coco.multiprocess import MultiProcessor
+from coco.networks import resnet_50
+from coco.augmentations import rot_zoom_crop
+
 
 
 """
@@ -74,7 +76,7 @@ Main program
 """
 if __name__ == "__main__":
     """
-    Mince part
+    Coco part
     """
     print "Building and reading database"
 

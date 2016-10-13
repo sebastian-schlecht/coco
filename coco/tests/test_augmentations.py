@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from mince.augmentations import flip_x, flip_y, pad_crop
+from coco.augmentations import flip_x, flip_y, pad_crop
 
 
 class TestAugmentations(unittest.TestCase):

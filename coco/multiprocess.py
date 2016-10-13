@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue, Lock, Manager
+from multiprocessing import Process, Queue, Lock
 import logging
 
 logger = logging.getLogger(__name__)
