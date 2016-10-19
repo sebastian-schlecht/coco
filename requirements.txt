@@ -1,13 +1,12 @@
 gdbn==0.1
 gnumpy==0.2
 h5py==2.6.0
-joblib==0.10.2
-Lasagne==0.2.dev1
-nolearn==0.6.0
-numpy==1.11.2
+joblib==0.9.3
+-e git+https://github.com/sebastian-schlecht/mince.git@c00f0229497434d06cac076953da81915a64a779#egg=Lasagne
+numpy==1.10.4
 Pillow==3.4.1
-scikit-learn==0.18
-scipy==0.18.1
+scikit-learn==0.17
+scipy==0.16.1
 six==1.10.0
 tabulate==0.7.5
-Theano==0.9.0.dev3
+Theano==0.8.0

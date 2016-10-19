@@ -5,6 +5,7 @@ from scipy.ndimage.interpolation import zoom, rotate
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
+
 def exp(image, level):
     """
     Change the exposure in an RGB image
@@ -14,7 +15,8 @@ def exp(image, level):
 
     """
     if image.dtype != np.uint8:
-        logger.warn("Datatype of input image is not uint8. Are you sure that you're calling exp() on the correct array?")
+        logger.warn(
+            "Datatype of input image is not uint8.")
     image = image.copy()
 
     def truncate(v):
@@ -86,14 +88,15 @@ def rot_zoom_crop(image, a, f, order=0, prefilter=False):
 
     return ii_s
 
-def mult_rgb(image, f=(1,1,1)):
+
+def mult_rgb(image, f=(1, 1, 1)):
     """
     Multiply color channels with a random number
     Operates in place without a copy
     """
-    image[0,:,:] *= f[0]
-    image[1,:,:] *= f[1]
-    image[2,:,:] *= f[2]
+    image[0, :, :] *= f[0]
+    image[1, :, :] *= f[1]
+    image[2, :, :] *= f[2]
     return image
 
 

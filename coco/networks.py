@@ -1,35 +1,4 @@
 import lasagne
-from coco.layers import ThinConvolution
-
-
-def thin_net(input_var, n_classes):
-    network = lasagne.layers.InputLayer(shape=(None, 3, 224, 224),
-                                        input_var=input_var)
-
-    network = ThinConvolution(network)
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
-
-    network = ThinConvolution(network)
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
-
-    network = ThinConvolution(network)
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
-
-    network = ThinConvolution(network)
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
-
-    network = lasagne.layers.DenseLayer(
-        lasagne.layers.dropout(network, p=.5),
-        num_units=256,
-        nonlinearity=lasagne.nonlinearities.rectify)
-
-    # And, finally, the output layer with 50% dropout on its inputs:
-    network = lasagne.layers.DenseLayer(
-        lasagne.layers.dropout(network, p=.5),
-        num_units=n_classes,
-        nonlinearity=lasagne.nonlinearities.softmax)
-
-    return network
 
 
 def lenet(input_var, n_classes):
