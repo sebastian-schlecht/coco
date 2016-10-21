@@ -4,6 +4,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from utils import grad_scale as param_grad_scale
+
 
 class Network(object):
     def __init__(self):
@@ -15,17 +17,22 @@ class Network(object):
     def init(self):
         pass
 
-    def add(self, name, layer):
+    def add(self, name, layer, grad_scale=1):
         """
         Add a layer instance to this network
         :param name:
         :param layer:
+        :param lr:
         :return:
         """
         if name in self._layers:
             raise AssertionError("Layer names must be unique throughout the net. Layer %s already registered." % name)
         self._layers[name] = layer
         self.last_layer = layer
+
+        # Apply individual learning rate to all trainable parameters
+        if grad_scale != 1:
+            param_grad_scale(layer, grad_scale)
         return layer
 
     def save(self, filename, unwrap_shared=True, compress=0, **tags):

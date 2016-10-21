@@ -4,16 +4,32 @@ import theano.tensor as T
 from lasagne.utils import floatX
 from lasagne.layers import get_output
 from lasagne.objectives import binary_crossentropy
-from lasagne.objectives import categorical_crossentropy
 
 
 def grad_scale(layer, scale):
+    """
+    Scale individual layer gradients
+    From https://github.com/dnouri/nolearn
+    :param layer:
+    :param scale:
+    :return:
+    """
     for param in layer.get_params(trainable=True):
         param.tag.grad_scale = floatX(scale)
     return layer
 
 
 def compute_saliency(input, output, X, loss_function=binary_crossentropy, aggregate=lambda x: x):
+    """
+    Compute a static saliency representation for a given input tensor X
+    From https://github.com/dnouri/nolearn
+    :param input:
+    :param output:
+    :param X:
+    :param loss_function:
+    :param aggregate:
+    :return:
+    """
     output = get_output(output, deterministic=True)
     scores = output.eval({input: X})
 
