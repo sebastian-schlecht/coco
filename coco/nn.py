@@ -2,9 +2,10 @@ import collections
 import joblib
 import logging
 
-logger = logging.getLogger(__name__)
-
 from utils import grad_scale as param_grad_scale
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class Network(object):
@@ -15,11 +16,15 @@ class Network(object):
         self.init()
 
     def init(self):
+        """
+        Override this method if you want to generate any network achitecture from scratch
+        :return:
+        """
         pass
 
     def add(self, name, layer, grad_scale=1):
         """
-        Add a layer instance to this network
+        Register a layer instance with this network. Eventually, also scale its gradients individually
         :param name:
         :param layer:
         :param lr:
@@ -35,7 +40,7 @@ class Network(object):
             param_grad_scale(layer, grad_scale)
         return layer
 
-    def save(self, filename, unwrap_shared=True, compress=0, **tags):
+    def save(self, filename, unwrap_shared=True, compress=2, **tags):
         data_store = {}
         for key, layer in self._layers.items():
             params = layer.get_params(unwrap_shared=unwrap_shared, **tags)

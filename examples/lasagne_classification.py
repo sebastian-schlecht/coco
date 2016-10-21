@@ -18,7 +18,7 @@ sys.path.insert(0, parentdir)
 from coco.database_builder import HDF5ClassDatabaseBuilder
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
-from coco.networks import resnet, thin_net
+from coco.networks import resnet
 from coco.augmentations import rot_zoom_crop
 
 """
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     train_reader.setup_read(train_db, randomize_access=False)
     # Create a multiprocessor object which manages data loading and transformation daemons
     train_processor = MultiProcessor(train_reader, func=augment, batch_size=batch_size)
-    # Start the daemons and tell them to use the databuilder we just setup to pull data from disk
+    # Start the daemons and tell them to use the database builder we just setup to pull data from disk
     train_processor.start_daemons()
 
     # We also need to read validation data. It's way less so we just do in in the main thread
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     # Careful. We feed one-hot coded labels
     target_var = T.imatrix('targets')
-    network = thin_net(input_var, n_classes)
+    network = resnet(input_var, n_classes)
 
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)

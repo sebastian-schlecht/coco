@@ -4,6 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
+
 def thread_proc(queue, func, db, batch_size, lock):
     """
     Main thread procedure
@@ -31,7 +32,8 @@ class MultiProcessor(object):
         self.func = func
         self.db = db
         if not self.db.can_read:
-            raise AssertionError("Database reader is not setup for read access. Please call setup_read() first on the reader instance.")
+            raise AssertionError(
+                "Database reader is not setup for read access. Please call setup_read() first on the reader instance.")
         self.q = Queue(maxsize=qsize)
         self.processes = []
         self.batch_size = batch_size
@@ -41,26 +43,26 @@ class MultiProcessor(object):
 
     def num_samples(self):
         return self.db.num_samples()
-        
-    
+
     def iterate(self, batches=None):
         """
         Iterate through the dataset by pulling all items out of the queue
+        :param batches:
         :return:
         """
-        if self.daemonized == True:
+        if self.daemonized:
             if batches is None:
                 batches = self.db.num_samples() // self.batch_size
 
             if batches == 0:
-                raise UserWarning("Batchsize %i is higher than total number of samples in the dataset %i" % (self.batch_size, self.db.num_samples))
+                raise UserWarning("Batchsize %i is higher than total number of samples in the dataset %i" % (
+                    self.batch_size, self.db.num_samples))
 
             for _ in range(batches):
                 yield self.q.get(block=True)
         else:
             for batch in self.db.iterate(batch_size=self.batch_size, func=self.func):
                 yield batch
-
 
     def start_daemons(self, parallelism=1):
         """
@@ -70,8 +72,13 @@ class MultiProcessor(object):
         """
         logger.debug("Starting daemons with parallelism=%i", parallelism)
         self.daemonized = True
-        if parallelism != 1:
-            raise ValueError("Currently we only support one prefetching process")
+        if parallelism < 1:
+            raise ValueError(
+                "Parameter 'parallelism' should be larger than zero. Otherwise no data will be flowing through the pipeline.")
+        if parallelism > 1:
+            if not self.db.randomize_access:
+                logger.warn(
+                    "You are spawning multiple database-reader without randomized access order. This will lead to non uniform distributions of data as database-readers cannot share db-cursors at the moment.")
 
         for pp in range(parallelism):
             args = (self.q, self.func, self.db, self.batch_size, self.lock)

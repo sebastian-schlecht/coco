@@ -44,13 +44,13 @@ class TestNetwork(unittest.TestCase):
         coconet, lasagnenet = build_net()
 
         # Coco
-        coconet.save('/tmp/coco_model.cocomodel')
+        coconet.save('/tmp/coco_model.npz')
         # Lasagne
         np.savez('/tmp/lasagne_model.npz', *lasagne.layers.get_all_param_values(lasagnenet))
 
         # Build a new coco net and load it from disk
         coconet, l = build_net()
-        coconet.load('/tmp/coco_model.cocomodel')
+        coconet.load('/tmp/coco_model.npz')
 
         # Build a new lasagne net and load it from disk
         _, network = build_net()
