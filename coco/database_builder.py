@@ -80,7 +80,7 @@ class ClassDatabaseBuilder(object):
                 image_obj = image_obj.resize(resize)
             else:
                 raise NotImplementedError()
-        
+
         image = np.array(image_obj)
         if len(image.shape) == 3:
             return image.transpose((2, 0, 1))
@@ -107,12 +107,12 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
         classes = file_list
         num_classes = len(classes)
 
-        image_ds = f.create_dataset('images', (0, 0, 0, 0), 
-                                    maxshape=(None, None, None, None), 
-                                    dtype=np.uint8, 
+        image_ds = f.create_dataset('images', (0, 0, 0, 0),
+                                    maxshape=(None, None, None, None),
+                                    dtype=np.uint8,
                                     chunks=(BLOCK_SIZE, 3 , shape[0], shape[1]))
-        label_ds = f.create_dataset('labels', (0, 0), 
-                                    maxshape=(None, None), 
+        label_ds = f.create_dataset('labels', (0, 0),
+                                    maxshape=(None, None),
                                     dtype=np.uint8,
                                     chunks=(BLOCK_SIZE, num_classes))
         label_idx = 0
@@ -137,10 +137,10 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
             labels = None
             for label_idx, image_path in block:
                 image_array = np.expand_dims(HDF5ClassDatabaseBuilder.read_image(image_path, resize=shape).copy(), 0)
-                   
+
                 if image_array is None or len(image_array.shape) != 4:
                     continue
-                
+
                 if images is None:
                     images = image_array
                 else:
