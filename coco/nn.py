@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 class Network(object):
     def __init__(self, input):
         self._layers = collections.OrderedDict()
+        self.output_layers = {}
+        self.input_layers = {}
         self.last_layer = None
         self.input = input
         # In case some sub-class implements this, call it
@@ -23,6 +25,21 @@ class Network(object):
         """
         pass
 
+    def add_output(self, name, layer, grad_scale):
+        self.add(name, layer, grad_scale=grad_scale)
+        if name in self.output_layers:
+            raise AssertionError("Output layer names must be unique")
+        self.output_layers[name] = layer
+        return layer
+
+    def self.add_input(self, name, layer)
+        self.add(name, layer)
+        if name in self.input_layers:
+            raise AssertionError("Input layer names must be unique")
+        self.input_layers[name] = layer
+        return layer
+
+
     def add(self, name, layer, grad_scale=1):
         """
         Register a layer instance with this network. Eventually, also scale its gradients individually
@@ -32,7 +49,9 @@ class Network(object):
         :return:
         """
         if name in self._layers:
-            raise AssertionError("Layer names must be unique throughout the net. Layer %s already registered." % name)
+            index = 0
+            while name not in self._layers:
+                name = name + ("_%i" % index)
         self._layers[name] = layer
         self.last_layer = layer
 
