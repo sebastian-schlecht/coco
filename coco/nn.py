@@ -2,6 +2,10 @@ import collections
 import joblib
 import logging
 
+import numpy as np
+
+import lasagne
+
 from utils import grad_scale as param_grad_scale
 
 logging.basicConfig(level=logging.DEBUG)
@@ -11,28 +15,31 @@ logger = logging.getLogger(__name__)
 class Network(object):
     def __init__(self, input):
         self._layers = collections.OrderedDict()
-        self.output_layers = {}
-        self.input_layers = {}
+        self.output_layers = collections.OrderedDict()
+        self.input_layers = collections.OrderedDict()
         self.last_layer = None
         self.input = input
         # In case some sub-class implements this, call it
         self.init()
+        for name, layer in self.output_layers.items():
+            logger.debug("Number of parameters for output '%s': %i" % (name, lasagne.layers.count_params(layer, trainable=True)))
+
 
     def init(self):
         """
         Override this method if you want to generate any network achitecture from scratch
         :return:
         """
-        pass
+        raise NotImplementedError()
 
-    def add_output(self, name, layer, grad_scale):
+    def add_output(self, name, layer, grad_scale=1.):
         self.add(name, layer, grad_scale=grad_scale)
         if name in self.output_layers:
             raise AssertionError("Output layer names must be unique")
         self.output_layers[name] = layer
         return layer
 
-    def self.add_input(self, name, layer)
+    def add_input(self, name, layer):
         self.add(name, layer)
         if name in self.input_layers:
             raise AssertionError("Input layer names must be unique")
@@ -50,14 +57,21 @@ class Network(object):
         """
         if name in self._layers:
             index = 0
-            while name not in self._layers:
-                name = name + ("_%i" % index)
+            new_name = name
+            while new_name in self._layers:
+                new_name = name + ("_%i" % index)
+                index += 1
+            name = new_name
         self._layers[name] = layer
         self.last_layer = layer
-
         # Apply individual learning rate to all trainable parameters
         if grad_scale != 1:
             param_grad_scale(layer, grad_scale)
+
+
+        shapes = [param.get_value().shape for param in layer.get_params(trainable=True)]
+        counts = [np.prod(shape) for shape in shapes]
+        logger.debug("Layer '%s' output shape: %s with trainable parameters: %i" % (name, str(layer.output_shape), sum(counts)))
         return layer
 
     def save(self, filename, unwrap_shared=True, compress=2, **tags):

@@ -65,8 +65,8 @@ class HDF5DatabaseReader(DatabaseReader):
     Class to read images from a folder and feed a HDF5 database
     """
 
-    def __init__(self):
-        super(HDF5DatabaseReader, self).__init__()
+    def __init__(self, image_key="images", label_key="labels"):
+        super(HDF5DatabaseReader, self).__init__(image_key=image_key, label_key=label_key)
         self.row_idx = 0
         self.db = None
         self.f = None
