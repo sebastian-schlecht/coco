@@ -11,13 +11,13 @@ import lasagne
 
 sys.path.append("../")
 
-from coco.networks import resnet_50
+from coco.architectures.classification import Resnet
 from coco.utils import compute_saliency
 
 
 def main():
     model = "./data/resnet50-food-101.npz"
-    image = "./data/burger.jpg"
+    image = "./data/sushi.jpg"
 
     # Open the image file
     img = Image.open(image)
@@ -30,7 +30,8 @@ def main():
 
     # Create neural network model
     print("Building model and compiling functions...")
-    network = resnet_50(input_var, 101)
+    resnet = Resnet(input_var, 101)
+    name, network = resnet.output_layers.items()[0]
     print("number of parameters in model: %d" % lasagne.layers.count_params(network, trainable=True))
 
     # Create a loss expression for validation/testing
@@ -81,13 +82,7 @@ def main():
     saliency = np.array(saliencies).mean(axis=0)
 
     # According to
-    upper = np.percentile(saliency, 95)
-    lower = np.percentile(saliency, 30)
-
-    mask = np.ones(saliency.shape, dtype=np.uint8) * 3
-    mask[saliency > upper] = 1
-    mask[saliency < lower] = 0
-    np.save("./data/saliency.npy", mask.astype(np.uint8))
+    np.save("./data/saliency.npy", saliency)
 
     # The saved saliency can be used as initial mask for graphcut models
     print "Done"

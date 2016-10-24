@@ -22,7 +22,7 @@ class Resnet(Network):
         super(Resnet, self).__init__(input=input)
 
     def init(self):
-        def residual_block(l, increase_dim=False, projection=False):
+        def residual_block(l, increase_dim=False, projection=False, pad=True, force_output=None):
             input_num_filters = l.output_shape[1]
             if increase_dim:
                 first_stride = (2, 2)
@@ -31,41 +31,48 @@ class Resnet(Network):
                 first_stride = (1, 1)
                 out_num_filters = input_num_filters
 
-            stack_1 = self.add("bn_%i_0" % self.rc, batch_norm(
-                self.add("conv_%i_0" % self.rc,
-                         ConvLayer(l, num_filters=out_num_filters, filter_size=(3, 3), stride=first_stride,
-                                   nonlinearity=rectify,
-                                   pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
-            stack_2 = self.add("bn_%i_1" % self.rc, batch_norm(
-                self.add("conv_%i_1" % self.rc,
-                         ConvLayer(stack_1, num_filters=out_num_filters, filter_size=(3, 3), stride=(1, 1),
-                                   nonlinearity=None,
-                                   pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
+            if force_output:
+                out_num_filters = force_output
+
+            bottleneck = out_num_filters // 4
+            stack_1 = self.add("bn_0", batch_norm(
+                self.add("conv_0", ConvLayer(l, num_filters=bottleneck, filter_size=(1, 1), stride=first_stride, nonlinearity=rectify,
+                          pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
+            stack_2 = self.add("bn_1", batch_norm(
+                self.add("conv_1", ConvLayer(stack_1, num_filters=bottleneck, filter_size=(3, 3), stride=(1, 1), nonlinearity=rectify,
+                          pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
+            stack_3 = self.add("bn_2", batch_norm(
+                self.add("conv_2", ConvLayer(stack_2, num_filters=out_num_filters, filter_size=(1, 1), stride=(1, 1), nonlinearity=None,
+                          pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
 
             # add shortcut connections
             if increase_dim:
                 if projection:
                     # projection shortcut, as option B in paper
                     projection = self.add("bn_%i_2" % self.rc, batch_norm(
-                        self.add("conv_%i_2" % self.rc,
+                        self.add("conv_3",
                                  ConvLayer(l, num_filters=out_num_filters, filter_size=(1, 1), stride=(2, 2),
                                            nonlinearity=None,
                                            pad='same', b=None, flip_filters=False))))
-                    block = self.add("nonlinearity_%i" % self.rc, NonlinearityLayer(
-                        self.add("elemwise_%i" % self.rc, ElemwiseSumLayer([stack_2, projection])),
+                    block = self.add("nonlinearity", NonlinearityLayer(
+                        self.add("elemwise", ElemwiseSumLayer([stack_3, projection])),
                         nonlinearity=rectify))
                 else:
                     # identity shortcut, as option A in paper
-                    identity = self.add("exp_%i" % self.rc, ExpressionLayer(l, lambda X: X[:, :, ::2, ::2],
+                    identity = self.add("exp", ExpressionLayer(l, lambda X: X[:, :, ::2, ::2],
                                                                             lambda s: (
                                                                                 s[0], s[1], s[2] // 2, s[3] // 2)))
-                    padding = self.add("padding_%i" % self.rc,
+                    padding = self.add("padding",
                                        PadLayer(identity, [out_num_filters // 4, 0, 0], batch_ndim=1))
-                    block = self.add("nonlinearity_%i" % self.rc, NonlinearityLayer(
-                        self.add("elemwise_%i" % self.rc, ElemwiseSumLayer([stack_2, padding])), nonlinearity=rectify))
+                    block = self.add("nonlinearity", NonlinearityLayer(
+                        self.add("elemwise", ElemwiseSumLayer([stack_3, padding])), nonlinearity=rectify))
             else:
-                block = self.add("nonlinearity_%i" % self.rc, NonlinearityLayer(
-                    self.add("elemwise_%i" % self.rc, ElemwiseSumLayer([stack_2, l])), nonlinearity=rectify))
+                if projection:
+                    l = self.add("bn_proj", batch_norm(
+                        self.add("conv_proj", ConvLayer(l, num_filters=out_num_filters, filter_size=(1, 1), stride=(1, 1), nonlinearity=None,
+                                  pad='same', b=None, flip_filters=False))))
+                block = self.add("nonlinearity", NonlinearityLayer(
+                    self.add("elemwise", ElemwiseSumLayer([stack_3, l])), nonlinearity=rectify))
 
             self.rc += 1
             return block
@@ -74,11 +81,12 @@ class Resnet(Network):
         l_in = self.add("input", InputLayer(shape=(None, 3, 224, 224), input_var=self.input))
 
         # First batch normalized layer and pool
-        l = self.add("bn_0", batch_norm(
-            self.add("conv_0", ConvLayer(l_in, num_filters=64, filter_size=(7, 7), stride=(2, 2), nonlinearity=rectify,
+        l = self.add("bn_s0", batch_norm(
+            self.add("conv_s0", ConvLayer(l_in, num_filters=64, filter_size=(7, 7), stride=(2, 2), nonlinearity=rectify,
                                          W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
-        l = self.add("pool_0", PoolLayer(l, pool_size=(3, 3), stride=(2, 2)))
+        l = self.add("pool_s0", PoolLayer(l, pool_size=(3, 3), stride=(2, 2)))
 
+        l = residual_block(l, force_output=256, projection=True)
         for _ in range(1, self.filter_config[0]):
             l = residual_block(l)
 
@@ -98,7 +106,7 @@ class Resnet(Network):
         l = self.add("global_pool", GlobalPoolLayer(l))
 
         # fully connected layer
-        self.add("fc", DenseLayer(
+        self.add_output("fc", DenseLayer(
             l, num_units=self.num_classes,
             W=lasagne.init.HeNormal(),
             nonlinearity=softmax))
