@@ -36,12 +36,20 @@ def normalize_images(images, labels, mean, std=None):
         images[i] -= mean
         if std:
             images[i] /= std
+    return images, labels
+
+def clip(images, labels, ic=None, lc=None):
+    if ic:
+        images = images.clip(ic[0], ic[1])
+    if lc:
+        labels = labels.clip(lc[0], lc[1])
+    return images, labels
 
 def downsample(images, labels, factors):
     if len(images.shape) == 4:
         i = images[:,:,::factors[0], ::factors[0]]
     else:
-        i = images[:,::factor[0], ::factor[0]]
+        i = images[:,::factors[0], ::factors[0]]
 
     if len(labels.shape) == 4:
         l = labels[:,:,::factors[1], ::factors[1]]

@@ -97,7 +97,7 @@ class ResidualDepth(Network):
         # Concat
         l = self.add("concat", ConcatLayer([down, up]))
         # Compress channels
-        l = self.add("compress_bn", batch_norm(self.add("compress_conv", ConvLayer(l, num_filters=num_filters, filter_size=(1, 1), stride=1, nonlinearity=rectify, pad='same',
+        l = self.add("compress_bn", batch_norm(self.add("compress_conv", ConvLayer(l, num_filters=num_filters, filter_size=(3, 3), stride=1, nonlinearity=rectify, pad='same',
                                                                                    W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))))
         return l
 
@@ -172,5 +172,5 @@ class ResidualDepth(Network):
         l = self._residual_block_down(l)
 
         # Final convolution
-        l = self.add_output("final_conv", ConvLayer(l, num_filters=1, filter_size=(1, 1), stride=(1, 1), nonlinearity=rectify, pad="same",
+        l = self.add_output("final_conv", ConvLayer(l, num_filters=1, filter_size=(3, 3), stride=(1, 1), nonlinearity=rectify, pad="same",
                                                     W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))

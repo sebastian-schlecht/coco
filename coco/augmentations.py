@@ -50,8 +50,7 @@ def flip_y(image):
         return image[:, ::-1, :]
     else:
         return image[::-1, :]
-
-
+    
 def mult_rgb(image, f=(1, 1, 1)):
     """
     Multiply color channels with a random number
@@ -101,7 +100,7 @@ def zoom_rot(ii,dd):
     """
     a = np.random.randint(-10,10)
     ddr = rotate(dd,a, order=0, prefilter=False)
-    iir = rotate(ii.transpose((1,2,0)),a, order=0, prefilter=False)
+    iir = rotate(ii.transpose((1,2,0)),a, order=2)
 
     f = np.random.randint(10000,15100) / 10000.
 
@@ -124,6 +123,6 @@ def zoom_rot(ii,dd):
     dd_s /= s_f
     ii_s = iic.transpose((2,0,1))
 
-    ii_s = zoom(ii_s,(1,s_fh,s_fw),order=0, prefilter=False)
+    ii_s = zoom(ii_s,(1,s_fh,s_fw),order=2)
 
     return ii_s.astype(np.float32), dd_s.astype(np.float32)
