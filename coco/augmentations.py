@@ -112,9 +112,8 @@ def zoom_rot(ii,dd):
 
     s_f = (s_fh + s_fw) / 2.
 
-    offset  = 0
-    cy = np.random.randint(offset,dd.shape[0] - h - offset + 1)
-    cx = np.random.randint(offset,dd.shape[1] - w - offset + 1)
+    cy = np.random.randint(0,dd.shape[0] - h + 1)
+    cx = np.random.randint(0,dd.shape[1] - w + 1)
 
     ddc = ddr[cy:cy+h, cx:cx+w]
     iic = iir[cy:cy+h,cx:cx+w,:]

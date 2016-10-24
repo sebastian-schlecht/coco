@@ -43,6 +43,9 @@ class MultiProcessor(object):
 
     def num_samples(self):
         return self.db.num_samples()
+    
+    def num_batches(self):
+        return self.num_samples() // self.batch_size
 
     def iterate(self, batches=None):
         """

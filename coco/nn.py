@@ -23,6 +23,8 @@ class Scaffolder(object):
     PHASE_TEST = 3
 
     def __init__(self, network_type, train_reader=None, val_reader=None, test_reader=None, inference=False):
+        self._compiled = False
+        
         self.train_inputs = []
         self.val_inputs = []
         self.test_inputs = []
@@ -69,23 +71,34 @@ class Scaffolder(object):
 
     def compile(self):
         if self.train_reader:
-            logger.debug("Compiling training function.")
+            logger.info("Compiling training function.")
             self.train_fn = theano.function(self.train_inputs, self.train_outputs, updates=self.updates)
         if self.val_reader:
-            logger.debug("Compiling validation function.")
+            logger.info("Compiling validation function.")
             self.val_fn = theano.function(self.val_inputs, self.val_outputs)
         if self.test_reader:
-            logger.debug("Compiling test function.")
+            logger.info("Compiling test function.")
             self.test_fn = theano.function(self.test_inputs, self.test_outputs)
 
         if self.inference:
-            logger.debug("Compiling inference function.")
+            logger.info("Compiling inference function.")
             self.inference_fn = theano.function(self.inference_inputs, self.inference_outputs)
+        
+        self._compiled = True
 
     def infer(self, inputs):
         return self.inference_fn(inputs)
 
     def fit(self, n_epochs):
+        if not self._compiled:
+            raise AssertionError("Models are not compiled. Call 'compile()' first.")
+        if self.train_reader:
+            self.train_reader.start_daemons()
+        if self.val_reader:
+            self.val_reader.start_daemons()
+        if self.test_reader:
+            self.test_reader.start_daemons()
+            
         batch_times = 0
         batch_index = 0
 
@@ -93,10 +106,11 @@ class Scaffolder(object):
         assert 0 in self.lr_schedule
 
         for epoch in range(n_epochs):
+            epoch_start = time.time()
             # Adapt LR if necessary
             if epoch in self.lr_schedule:
                 val = self.lr_schedule[epoch]
-                logger.debug("Setting LR to " + str(val))
+                logger.info("Setting LR to " + str(val))
                 self.lr.set_value(lasagne.utils.floatX(val))
             logger.info("Training Epoch %i" % (epoch + 1))
             # Train for one epoch
@@ -109,10 +123,12 @@ class Scaffolder(object):
                 batch_index += 1
                 if batch_index == 20 and epoch == 0:
                     time_per_batch = batch_times / batch_index
-                    eta = time.time() + n_epochs * (time_per_batch * self.train_reader.num_samples())
+                    total_dur = n_epochs * (time_per_batch * self.train_reader.num_batches())
+                    eta = time.time() + total_dur
                     localtime = time.asctime(time.localtime(eta))
                     logger.info("Average time per forward/backward pass: " + str(time_per_batch))
-                    logger.info("ETA: ", localtime)
+                    logger.info("Expected duration for training: %s" + str(total_dur) + "s")
+                    logger.info("ETA: %s", str(localtime))
                 self.train_losses.append(err)
                 self.on_batch_end(Scaffolder.PHASE_TRAIN)
 
@@ -129,6 +145,8 @@ class Scaffolder(object):
                     err = self.test_fn(inputs, targets)
                     self.test_losses.append(err)
                     self.on_batch_end(Scaffolder.PHASE_TEST)
+            epoch_end = time.time()
+            logger.info("Epoch %i took %f seconds." % (epoch + 1, epoch_end - epoch_start))
             self.on_epoch_end()
 
     def save(self, filename):
