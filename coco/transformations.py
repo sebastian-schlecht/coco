@@ -11,6 +11,7 @@ def zoom_rotate(images, labels, deterministic=False):
         images[i], labels[i] = A.zoom_rot(images[i], labels[i])
     return images, labels
 
+
 def flip_x(images, labels, deterministic=False):
     if deterministic:
         return images, labels
@@ -23,6 +24,7 @@ def flip_x(images, labels, deterministic=False):
             labels[i] = A.flip_x(labels[i])
     return images, labels
 
+
 def random_rgb(images, labels, deterministic=False):
     if deterministic:
         return images, labels
@@ -31,12 +33,14 @@ def random_rgb(images, labels, deterministic=False):
         images[i] = A.mult_rgb(images[i])
     return images, labels
 
+
 def normalize_images(images, labels, mean, std=None):
     for i in range(images.shape[0]):
         images[i] -= mean
         if std:
             images[i] /= std
     return images, labels
+
 
 def clip(images, labels, ic=None, lc=None):
     if ic:
@@ -45,17 +49,19 @@ def clip(images, labels, ic=None, lc=None):
         labels = labels.clip(lc[0], lc[1])
     return images, labels
 
+
 def downsample(images, labels, factors):
     if len(images.shape) == 4:
-        i = images[:,:,::factors[0], ::factors[0]]
+        i = images[:, :, ::factors[0], ::factors[0]]
     else:
-        i = images[:,::factors[0], ::factors[0]]
+        i = images[:, ::factors[0], ::factors[0]]
 
     if len(labels.shape) == 4:
-        l = labels[:,:,::factors[1], ::factors[1]]
+        l = labels[:, :, ::factors[1], ::factors[1]]
     else:
-        l = labels[:,::factors[1], ::factors[1]]
-    return  i, l
+        l = labels[:, ::factors[1], ::factors[1]]
+    return i, l
+
 
 def random_crop(images, labels, size, deterministic=False):
     h, w = size
