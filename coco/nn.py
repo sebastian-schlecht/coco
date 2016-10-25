@@ -1,5 +1,3 @@
-import collections
-import joblib
 import logging
 import time
 
@@ -8,7 +6,7 @@ import theano
 
 import lasagne
 
-from utils import grad_scale as param_grad_scale
+from job import Job
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -18,9 +16,13 @@ class Scaffolder(object):
     """
     Object to scaffold network training, validation, test and inference
     """
-    PHASE_TRAIN = 1
-    PHASE_VAL = 2
-    PHASE_TEST = 3
+    PHASE_TRAIN = "phase_train"
+    PHASE_VAL = "phase_val"
+    PHASE_TEST = "phase_test"
+
+    STATE_SETUP = "state_setup"
+    STATE_RUN = "state_run"
+    STATE_FINISH = "state_finish"
 
     def __init__(self, network_type, train_reader=None, val_reader=None, test_reader=None, inference=False):
         self._compiled = False
@@ -89,9 +91,12 @@ class Scaffolder(object):
     def infer(self, inputs):
         return self.inference_fn(inputs)
 
-    def fit(self, n_epochs):
+    def fit(self, n_epochs, job_name=None):
         if not self._compiled:
             raise AssertionError("Models are not compiled. Call 'compile()' first.")
+
+        current_job = Job(job_name)
+        current_job.set("state", Scaffolder.STATE_SETUP)
         if self.train_reader:
             self.train_reader.start_daemons()
         if self.val_reader:
@@ -105,6 +110,7 @@ class Scaffolder(object):
         # Make sure we know the lr to begin with
         assert 0 in self.lr_schedule
 
+        current_job.set("state", Scaffolder.STATE_RUN)
         for epoch in range(n_epochs):
             epoch_start = time.time()
             # Adapt LR if necessary
@@ -114,6 +120,7 @@ class Scaffolder(object):
                 self.lr.set_value(lasagne.utils.floatX(val))
             logger.info("Training Epoch %i" % (epoch + 1))
             # Train for one epoch
+            current_job.set("phase", Scaffolder.PHASE_TRAIN)
             for batch in self.train_reader.iterate():
                 inputs, targets = batch
                 batch_start = time.time()
@@ -131,23 +138,32 @@ class Scaffolder(object):
                     logger.info("ETA: %s", str(localtime))
                 self.train_losses.append(err)
                 self.on_batch_end(Scaffolder.PHASE_TRAIN)
+                current_job.set("train_losses", self.train_losses)
 
             if self.val_reader:
+                current_job.set("phase", Scaffolder.PHASE_VAL)
                 for batch in self.val_reader.iterate():
                     inputs, targets = batch
                     err = self.val_fn(inputs, targets)
                     self.val_losses.append(err)
                     self.on_batch_end(Scaffolder.PHASE_VAL)
+                    current_job.set("val_losses", self.train_losses)
 
             if self.test_reader:
+                current_job.set("phase", Scaffolder.PHASE_TEST)
                 for batch in self.test_reader.iterate():
                     inputs, targets = batch
                     err = self.test_fn(inputs, targets)
                     self.test_losses.append(err)
                     self.on_batch_end(Scaffolder.PHASE_TEST)
+                    current_job.set("test_losses", self.train_losses)
+
             epoch_end = time.time()
             logger.info("Epoch %i took %f seconds." % (epoch + 1, epoch_end - epoch_start))
             self.on_epoch_end()
+
+        # Job done
+        current_job.set("state", Scaffolder.STATE_RUN)
 
     def save(self, filename):
         if self.network:
