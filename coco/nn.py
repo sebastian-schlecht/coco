@@ -104,14 +104,13 @@ class Scaffolder(object):
         if self.test_reader:
             self.test_reader.start_daemons()
 
-        batch_times = 0
-        batch_index = 0
-
         # Make sure we know the lr to begin with
         assert 0 in self.lr_schedule
 
         current_job.set("state", Scaffolder.STATE_RUN)
         for epoch in range(n_epochs):
+            batch_times = 0
+            batch_index = 0
             epoch_start = time.time()
             # Adapt LR if necessary
             if epoch in self.lr_schedule:
@@ -128,6 +127,11 @@ class Scaffolder(object):
                 batch_end = time.time()
                 batch_times += (batch_end - batch_start)
                 batch_index += 1
+                self.train_losses.append(err)
+                self.on_batch_end(Scaffolder.PHASE_TRAIN)
+                if batch_index % 100 == 0:
+                    current_job.set("train_losses", self.train_losses)
+                    
                 if batch_index == 20 and epoch == 0:
                     time_per_batch = batch_times / batch_index
                     total_dur = n_epochs * (time_per_batch * self.train_reader.num_batches())
@@ -136,10 +140,8 @@ class Scaffolder(object):
                     logger.info("Average time per forward/backward pass: " + str(time_per_batch))
                     logger.info("Expected duration for training: " + str(total_dur) + "s")
                     logger.info("ETA: %s", str(localtime))
-                self.train_losses.append(err)
-                self.on_batch_end(Scaffolder.PHASE_TRAIN)
-                current_job.set("train_losses", self.train_losses)
-
+                
+            
             if self.val_reader:
                 current_job.set("phase", Scaffolder.PHASE_VAL)
                 for batch in self.val_reader.iterate():
@@ -147,7 +149,8 @@ class Scaffolder(object):
                     err = self.val_fn(inputs, targets)
                     self.val_losses.append(err)
                     self.on_batch_end(Scaffolder.PHASE_VAL)
-                    current_job.set("val_losses", self.val_losses)
+                current_job.set("val_losses", self.val_losses)
+                    
 
             if self.test_reader:
                 current_job.set("phase", Scaffolder.PHASE_TEST)
@@ -156,7 +159,7 @@ class Scaffolder(object):
                     err = self.test_fn(inputs, targets)
                     self.test_losses.append(err)
                     self.on_batch_end(Scaffolder.PHASE_TEST)
-                    current_job.set("test_losses", self.test_losses)
+                current_job.set("test_losses", self.test_losses)
 
             epoch_end = time.time()
             logger.info("Epoch %i took %f seconds." % (epoch + 1, epoch_end - epoch_start))
