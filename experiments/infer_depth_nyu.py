@@ -75,8 +75,8 @@ def main():
     scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
 
     scaffolder.compile()
-    scaffolder.fit(1)
-
+    scaffolder.fit(30, job_name="nyu_depth")
+    scaffolder.save("/data/data/resunet")
 
 if __name__ == "__main__":
     main()

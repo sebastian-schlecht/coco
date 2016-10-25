@@ -52,6 +52,14 @@ class DepthPredictionScaffolder(Scaffolder):
         self.test_outputs = [val_test_loss]
 
         self.inference_outputs = [val_test_prediction]
+        
+        self.lr_schedule = {
+            0: 0.001,
+            1: 0.01,
+            10: 0.005,
+            20: 0.002,
+            25: 0.00005
+        }
 
 
 class ResidualDepth(Network):

@@ -1,7 +1,10 @@
 import time, os, errno
 import joblib
 
-JOB_DIR = "~/.coco/jobs"
+
+from os.path import expanduser
+home = expanduser("~")
+JOB_DIR = "%s/.coco/jobs" % home
 
 
 class Job(object):
@@ -11,14 +14,14 @@ class Job(object):
         self.name = name
         self.data = {}
 
-    def save(self):
+    def save(self, compress=3):
         filename = "%s/%s" % (JOB_DIR, self.name)
         Job.conditionally_create_dir(filename)
-        joblib.dump(self.data, filename)
+        joblib.dump(self.data, filename, compress=compress)
 
     def load(self):
         filename = "%s/%s" % (JOB_DIR, self.name)
-        joblib.load(filename)
+        self.data = joblib.load(filename)
 
     def set(self, name, value):
         self.data[name] = value
