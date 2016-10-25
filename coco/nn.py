@@ -127,7 +127,7 @@ class Scaffolder(object):
                     eta = time.time() + total_dur
                     localtime = time.asctime(time.localtime(eta))
                     logger.info("Average time per forward/backward pass: " + str(time_per_batch))
-                    logger.info("Expected duration for training: %s" + str(total_dur) + "s")
+                    logger.info("Expected duration for training: " + str(total_dur) + "s")
                     logger.info("ETA: %s", str(localtime))
                 self.train_losses.append(err)
                 self.on_batch_end(Scaffolder.PHASE_TRAIN)
