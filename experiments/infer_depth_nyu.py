@@ -2,11 +2,7 @@ import sys
 import os
 import inspect
 
-import theano
-import theano.tensor as T
 import numpy as np
-
-import lasagne
 
 currentdir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
@@ -16,7 +12,6 @@ sys.path.insert(0, parentdir)
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
 from coco.architectures.depth import DepthPredictionScaffolder, ResidualDepth
-from coco.losses import mse
 from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip
 
 global mean
@@ -78,7 +73,7 @@ def main():
         val_reader, func=process_val, batch_size=batch_size)
 
     scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
-    
+
     scaffolder.compile()
     scaffolder.fit(1)
 
