@@ -1,11 +1,13 @@
+Cython==0.24.1
 gdbn==0.1
 gnumpy==0.2
 h5py==2.6.0
 joblib==0.9.3
--e git+https://github.com/sebastian-schlecht/mince.git@1ec5819d8fef9115cd906afaabd9d0c850589957#egg=Lasagne
+-e git+https://github.com/sebastian-schlecht/mince.git@b79526c7f37332d3b4973f65f049dce844f0f0cd#egg=Lasagne
 numpy==1.10.4
 pep8==1.7.0
 Pillow==3.4.1
+PyMaxflow==1.2.4
 scikit-learn==0.17
 scipy==0.16.1
 six==1.10.0
