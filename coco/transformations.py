@@ -30,7 +30,10 @@ def random_rgb(images, labels, deterministic=False):
         return images, labels
     for i in range(images.shape[0]):
         # Random RGB
-        images[i] = A.mult_rgb(images[i])
+        r = np.random.randint(85,116) / 100.
+        g = np.random.randint(85,116) / 100.
+        b = np.random.randint(85,116) / 100.
+        images[i] = A.mult_rgb(images[i], f=(r, g, b))
     return images, labels
 
 

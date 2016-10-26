@@ -54,16 +54,15 @@ class DepthPredictionScaffolder(Scaffolder):
         self.inference_outputs = [val_test_prediction]
         
         self.lr_schedule = {
-            0: 0.001,
-            1: 0.01,
-            10: 0.005,
-            20: 0.002,
-            25: 0.00005
+            1: 0.001,
+            2: 0.01,
+            30: 0.001,
+            50: 0.0001,
         }
 
 
 class ResidualDepth(Network):
-    def __init__(self, input, k=1):
+    def __init__(self, inputs, k=1):
         """
         Constructor
         :param input: Input expression
@@ -71,7 +70,7 @@ class ResidualDepth(Network):
         :return:
         """
         self.k = k
-        super(ResidualDepth, self).__init__(input)
+        super(ResidualDepth, self).__init__(inputs)
 
     def _residual_block_up(self, l, decrease_dim=False, projection=True, padding="same", conv_filter=(3, 3),
                            proj_filter=(3, 3)):
@@ -156,11 +155,14 @@ class ResidualDepth(Network):
     def _concat_compress(self, down, up, num_filters):
         # Recycle
         down = self._residual_block_down(down)
+        down = self._residual_block_down(down)
+        
         # Concat
         l = ConcatLayer([down, up])
+        
         # Compress channels
         l = batch_norm(
-            ConvLayer(l, num_filters=num_filters, filter_size=(3, 3),
+            ConvLayer(l, num_filters=num_filters, filter_size=(1, 1),
                       stride=1, nonlinearity=rectify, pad='same',
                       W=lasagne.init.HeNormal(gain='relu'),
                       flip_filters=False))
@@ -192,14 +194,12 @@ class ResidualDepth(Network):
         l_3 = l
 
         # Output is 512x30x40 at this point
-
         l = self._residual_block_down(l, projection=True, increase_dim=True)
         for _ in range(1, 6):
             l = self._residual_block_down(l)
         l_4 = l
 
         # Output is 1024x16x20 at this point
-
         l = self._residual_block_down(l, projection=True, increase_dim=True)
         for _ in range(1, 3):
             l = self._residual_block_down(l)
@@ -216,31 +216,23 @@ class ResidualDepth(Network):
                                     conv_filter=(4, 4), proj_filter=(4, 4))
         l = self._residual_block_up(l)
         l_7 = l
-
-        self._concat_compress(l_4, l_7, 512)
+        l = self._concat_compress(l_4, l_7, 512)
 
         # first expansive block. seventh stack of residuals, output is
         # 256x30x40
         l = self._residual_block_up(l, decrease_dim=True, padding=1,
                                     conv_filter=(4, 3), proj_filter=(4, 3))
-
-        l = self._residual_block_down(l)
         l_8 = l
-
-        self._concat_compress(l_3, l_8, 256)
+        l = self._concat_compress(l_3, l_8, 256)
 
         # residual block #8, output is 128x60x80
         l = self._residual_block_up(l, decrease_dim=True, padding=1,
                                     conv_filter=(4, 3), proj_filter=(4, 3))
-
-        l = self._residual_block_down(l)
         l_9 = l
-
-        self._concat_compress(l_2, l_9, 128)
+        l = self._concat_compress(l_2, l_9, 128)
 
         # residual block #9, output is 64x120x160
         l = self._residual_block_up(l, decrease_dim=True)
-        l = self._residual_block_down(l)
 
         # Final convolution
         l = ConvLayer(l, num_filters=1, filter_size=(1, 1), stride=(1, 1), nonlinearity=rectify,

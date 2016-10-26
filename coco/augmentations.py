@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 from scipy.ndimage.interpolation import zoom, rotate
+import math
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -99,29 +100,40 @@ def zoom_rot(ii,dd):
     Special case. Transform data and labels in conjunction
     """
     a = np.random.randint(-10,10)
-    ddr = rotate(dd,a, order=0, prefilter=False)
-    iir = rotate(ii.transpose((1,2,0)),a, order=2)
+    ddr = rotate(dd,a, order=0, prefilter=False, reshape=False)
+    iir = rotate(ii.transpose((1,2,0)),a, order=2, reshape=False)
+    
+    rads = (abs(a) / 180.) * math.pi
 
-    f = np.random.randint(10000,15100) / 10000.
+    h = ii.shape[1]
+    w = ii.shape[2]
+    x = math.ceil(math.tan(rads) * (h/2.))
+    y = math.ceil(math.tan(rads) * (w/2.))
 
-    h = int(dd.shape[0] / f)
-    w = int(dd.shape[1] / f)
+    max_w = w - 2*x
+    max_h = h - 2*y
 
-    s_fh = float(dd.shape[0]) / float(h)
-    s_fw = float(dd.shape[1]) / float(w)
+    min_f = max(w/max_w, h/max_h)
+    f = np.random.uniform(min_f, 1.5)
+    
+    n_h = int(h / f)
+    n_w = int(w / f)
 
-    s_f = (s_fh + s_fw) / 2.
+    upper = h - n_h - y
+    cy = np.random.randint(y, upper)
+    upper = w - n_w - x
+    cx = np.random.randint(x, upper)
 
-    cy = np.random.randint(0,dd.shape[0] - h + 1)
-    cx = np.random.randint(0,dd.shape[1] - w + 1)
-
-    ddc = ddr[cy:cy+h, cx:cx+w]
-    iic = iir[cy:cy+h,cx:cx+w,:]
+    ddc = ddr[cy:cy+n_h, cx:cx+n_w]
+    iic = iir[cy:cy+n_h, cx:cx+n_w, :]
+    
+    s_fh = float(h) / float(n_h)
+    s_fw = float(w) / float(n_w)
 
     dd_s = zoom(ddc,(s_fh, s_fw),order=0, prefilter=False)
-    dd_s /= s_f
+    dd_s /= f
+    
     ii_s = iic.transpose((2,0,1))
-
     ii_s = zoom(ii_s,(1,s_fh,s_fw),order=2)
 
     return ii_s.astype(np.float32), dd_s.astype(np.float32)

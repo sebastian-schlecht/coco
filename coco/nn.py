@@ -42,7 +42,7 @@ class Scaffolder(object):
         self.test_cost = None
 
         self.updates = None
-        self.lr_schedule = {0: 0.1}
+        self.lr_schedule = {1: 0.1}
 
         self.train_fn = None
         self.val_fn = None
@@ -91,7 +91,7 @@ class Scaffolder(object):
     def infer(self, inputs):
         return self.inference_fn(inputs)
 
-    def fit(self, n_epochs, job_name=None):
+    def fit(self, n_epochs, job_name=None, snapshot=None):
         if not self._compiled:
             raise AssertionError("Models are not compiled. Call 'compile()' first.")
 
@@ -105,10 +105,13 @@ class Scaffolder(object):
             self.test_reader.start_daemons()
 
         # Make sure we know the lr to begin with
-        assert 0 in self.lr_schedule
+        assert 1 in self.lr_schedule
 
         current_job.set("state", Scaffolder.STATE_RUN)
-        for epoch in range(n_epochs):
+        
+        for epoch in range(1, n_epochs+1):
+            current_job.set("epoch", epoch)
+            
             batch_times = 0
             batch_index = 0
             epoch_start = time.time()
@@ -132,7 +135,7 @@ class Scaffolder(object):
                 if batch_index % 100 == 0:
                     current_job.set("train_losses", self.train_losses)
                     
-                if batch_index == 20 and epoch == 0:
+                if batch_index == 20 and epoch == 1:
                     time_per_batch = batch_times / batch_index
                     total_dur = n_epochs * (time_per_batch * self.train_reader.num_batches())
                     eta = time.time() + total_dur
@@ -162,7 +165,10 @@ class Scaffolder(object):
                 current_job.set("test_losses", self.test_losses)
 
             epoch_end = time.time()
-            logger.info("Epoch %i took %f seconds." % (epoch + 1, epoch_end - epoch_start))
+            logger.info("Epoch %i took %f seconds." % (epoch, epoch_end - epoch_start))
+            if snapshot:
+                logger.info("Saving model state to %s." % snapshot)
+                self.save(snapshot)
             self.on_epoch_end()
 
         # Job done

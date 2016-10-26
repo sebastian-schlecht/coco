@@ -30,7 +30,7 @@ def process_train(images, labels):
     images, labels = zoom_rotate(images, labels)
     images, labels = random_rgb(images, labels)
     images, labels = clip(images, labels, ic=(0. ,255.))
-    images, labels = normalize_images(images, labels, mean, 71.571201304890508)
+    images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
     
     images, labels = random_crop(images, labels, size)
     images, labels = downsample(images, labels, (1, 2))
@@ -43,9 +43,10 @@ def process_val(images, labels):
     labels = labels.astype(np.float32)
 
     assert images.shape[0] == labels.shape[0]
+    global mean
 
     size = (228, 304)
-    images, labels = normalize_images(images, labels, mean, 71.571201304890508)
+    images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
     images, labels = random_crop(images, labels, size, deterministic=True)
     images, labels = downsample(images, labels, (1, 2))
 
@@ -75,8 +76,8 @@ def main():
     scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
 
     scaffolder.compile()
-    scaffolder.fit(30, job_name="nyu_depth")
-    scaffolder.save("/data/data/resunet")
+    scaffolder.fit(60, job_name="nyu_depth", snapshot="/data/data/resunet.npz")
+    scaffolder.save("/data/data/resunet.npz")
 
 if __name__ == "__main__":
     main()
