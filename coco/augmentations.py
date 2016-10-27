@@ -13,19 +13,11 @@ def exp(image, level):
     :param img: np.array
     :param level: Number
     :return: Image
-
     """
-    if image.dtype != np.uint8:
-        logger.warn(
-            "Datatype of input image is not uint8.")
-    image = image.copy()
-
-    def truncate(v):
-        return 0 if v < 0 else 255 if v > 255 else v
-
+    image = image.copy().astype(np.float32)
     factor = (259. * (level + 255.)) / (255. * (259. - level))
-    for x in np.nditer(image, op_flags=['readwrite']):
-        x[...] = truncate(factor * (x - 128) + 128)
+    image = factor * (image - 128) + 128
+    image = image.clip(0.,255.)
     return image
 
 
@@ -93,6 +85,10 @@ def pad_crop(image, padsize=4):
         y = image.shape[0]
         return padded[cy:cy + y, cx:cx + x]
 
+def add_noise(image, strength=0.2, mu=0, sigma=50):
+    noise = np.random.normal(mu, sigma, size=image.shape)
+    noisy = image +  strength * noise
+    return noisy
 
 
 def zoom_rot(ii,dd):

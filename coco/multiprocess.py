@@ -15,6 +15,8 @@ def thread_proc(queue, func, db, batch_size, lock):
     :param lock: lock to protect the db builder
     :return:
     """
+    if db.randomize_access:
+        db.permute()
     while True:
         # Pull data from db
         lock.acquire()

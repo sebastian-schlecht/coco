@@ -24,7 +24,7 @@ class Scaffolder(object):
     STATE_RUN = "state_run"
     STATE_FINISH = "state_finish"
 
-    def __init__(self, network_type, train_reader=None, val_reader=None, test_reader=None, inference=False):
+    def __init__(self, network_type, train_reader=None, val_reader=None, test_reader=None, inference=False, **kwargs):
         self._compiled = False
 
         self.train_inputs = []
@@ -54,6 +54,7 @@ class Scaffolder(object):
         self.test_losses = []
 
         self.network_type = network_type
+        self.args = kwargs
         self.network = None
         self.train_reader = train_reader
         self.val_reader = val_reader
@@ -91,14 +92,14 @@ class Scaffolder(object):
     def infer(self, inputs):
         return self.inference_fn(inputs)
 
-    def fit(self, n_epochs, job_name=None, snapshot=None):
+    def fit(self, n_epochs, job_name=None, snapshot=None, parallelism=1):
         if not self._compiled:
             raise AssertionError("Models are not compiled. Call 'compile()' first.")
 
         current_job = Job(job_name)
         current_job.set("state", Scaffolder.STATE_SETUP)
         if self.train_reader:
-            self.train_reader.start_daemons()
+            self.train_reader.start_daemons(parallelism=parallelism)
         if self.val_reader:
             self.val_reader.start_daemons()
         if self.test_reader:
@@ -120,7 +121,7 @@ class Scaffolder(object):
                 val = self.lr_schedule[epoch]
                 logger.info("Setting LR to " + str(val))
                 self.lr.set_value(lasagne.utils.floatX(val))
-            logger.info("Training Epoch %i" % (epoch + 1))
+            logger.info("Training Epoch %i" % (epoch))
             # Train for one epoch
             current_job.set("phase", Scaffolder.PHASE_TRAIN)
             for batch in self.train_reader.iterate():

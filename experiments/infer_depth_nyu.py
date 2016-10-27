@@ -12,7 +12,7 @@ sys.path.insert(0, parentdir)
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
 from coco.architectures.depth import DepthPredictionScaffolder, ResidualDepth
-from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip
+from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip, noise, exp
 
 global mean
 mean = np.load("/data/data/nyu_v2.npy")
@@ -26,10 +26,12 @@ def process_train(images, labels):
     size = (228, 304)
     
     global mean
-    
+    images, labels = exp(images, labels)
     images, labels = zoom_rotate(images, labels)
     images, labels = random_rgb(images, labels)
+    images, labels = noise(images, labels)
     images, labels = clip(images, labels, ic=(0. ,255.))
+    
     images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
     
     images, labels = random_crop(images, labels, size)
@@ -60,10 +62,10 @@ def main():
     train_db = "/data/data/nyu_v2.hdf5"
     val_db = "/data/data/test_v2.hdf5"
 
-    batch_size = 16
+    batch_size = 64
 
     train_reader = HDF5DatabaseReader(label_key="depths")
-    train_reader.setup_read(train_db)
+    train_reader.setup_read(train_db, randomize_access=True)
 
     val_reader = HDF5DatabaseReader(label_key="depths")
     val_reader.setup_read(val_db)
@@ -73,10 +75,10 @@ def main():
     val_processor = MultiProcessor(
         val_reader, func=process_val, batch_size=batch_size)
 
-    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
+    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor, k=0.5)
 
     scaffolder.compile()
-    scaffolder.fit(60, job_name="nyu_depth", snapshot="/data/data/resunet.npz")
+    scaffolder.fit(100, job_name="nyu_depth", snapshot="/data/data/resunet.npz", parallelism=4)
     scaffolder.save("/data/data/resunet.npz")
 
 if __name__ == "__main__":

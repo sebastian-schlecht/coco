@@ -21,7 +21,7 @@ class DepthPredictionScaffolder(Scaffolder):
         targets = T.tensor3("targets")
         targets_reshaped = targets.dimshuffle((0, "x", 1, 2))
 
-        self.network = self.network_type([input])
+        self.network = self.network_type([input], **self.args)
         output_layer = self.network.output_layers[0]
 
         prediction = lasagne.layers.get_output(output_layer)
@@ -54,26 +54,29 @@ class DepthPredictionScaffolder(Scaffolder):
         self.inference_outputs = [val_test_prediction]
         
         self.lr_schedule = {
-            1: 0.001,
-            2: 0.01,
-            30: 0.001,
-            50: 0.0001,
+            1: 0.01,
+            2: 0.1,
+            40: 0.01,
+            80: 0.001,
         }
 
 
 class ResidualDepth(Network):
-    def __init__(self, inputs, k=1):
+    def __init__(self, inputs, **kwargs):
         """
         Constructor
         :param input: Input expression
         :param k: Initial filter scaling factor
         :return:
         """
-        self.k = k
+        if "k" in kwargs:
+            self.k = kwargs["k"]
+        else:
+            self.k = 1
         super(ResidualDepth, self).__init__(inputs)
 
-    def _residual_block_up(self, l, decrease_dim=False, projection=True, padding="same", conv_filter=(3, 3),
-                           proj_filter=(3, 3)):
+    def _residual_block_up(self, l, decrease_dim=False, projection=True, padding="same", conv_filter=(5, 5),
+                           proj_filter=(5, 5)):
         input_num_filters = l.output_shape[1]
         if decrease_dim:
             out_num_filters = input_num_filters / 2
@@ -81,17 +84,13 @@ class ResidualDepth(Network):
         else:
             out_num_filters = input_num_filters
 
-        bottleneck = out_num_filters // 4
+        
         stack_1 = batch_norm(
-            ConvLayer(l, num_filters=bottleneck, filter_size=(1, 1), stride=(1, 1),
-                      nonlinearity=rectify,
-                      pad="same", W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
-        stack_2 = batch_norm(
-            ConvLayer(stack_1, num_filters=bottleneck, filter_size=conv_filter, stride=(1, 1),
+            ConvLayer(l, num_filters=out_num_filters, filter_size=conv_filter, stride=(1, 1),
                       nonlinearity=rectify,
                       pad=padding, W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
-        stack_3 = batch_norm(
-            ConvLayer(stack_2, num_filters=out_num_filters, filter_size=(1, 1), stride=(1, 1),
+        stack_2 = batch_norm(
+            ConvLayer(stack_1, num_filters=out_num_filters, filter_size=(1, 1), stride=(1, 1),
                       nonlinearity=None,
                       pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
 
@@ -102,11 +101,11 @@ class ResidualDepth(Network):
                     ConvLayer(l, num_filters=out_num_filters, filter_size=proj_filter, stride=(1, 1),
                               nonlinearity=None,
                               pad=padding, b=None, flip_filters=False))
-                block = NonlinearityLayer(ElemwiseSumLayer([stack_3, projection]), nonlinearity=rectify)
+                block = NonlinearityLayer(ElemwiseSumLayer([stack_2, projection]), nonlinearity=rectify)
             else:
                 raise NotImplementedError()
         else:
-            block = NonlinearityLayer(ElemwiseSumLayer([stack_3, l]), nonlinearity=rectify)
+            block = NonlinearityLayer(ElemwiseSumLayer([stack_2, l]), nonlinearity=rectify)
         return block
 
     def _residual_block_down(self, l, increase_dim=False, projection=False, force_output=None):
@@ -152,22 +151,6 @@ class ResidualDepth(Network):
             block = NonlinearityLayer(ElemwiseSumLayer([stack_3, l]), nonlinearity=rectify)
         return block
 
-    def _concat_compress(self, down, up, num_filters):
-        # Recycle
-        down = self._residual_block_down(down)
-        down = self._residual_block_down(down)
-        
-        # Concat
-        l = ConcatLayer([down, up])
-        
-        # Compress channels
-        l = batch_norm(
-            ConvLayer(l, num_filters=num_filters, filter_size=(1, 1),
-                      stride=1, nonlinearity=rectify, pad='same',
-                      W=lasagne.init.HeNormal(gain='relu'),
-                      flip_filters=False))
-        return l
-
     def init(self):
         assert len(self.inputs) == 1
 
@@ -182,22 +165,19 @@ class ResidualDepth(Network):
         l = PoolLayer(l, pool_size=(2, 2))
 
         # Output is 64x60x80 at this point
-        l = self._residual_block_down(l, projection=True, force_output=256)
-        l = self._residual_block_down(l)
-
-        l_2 = l
+        l = self._residual_block_down(l, projection=True, force_output=int(256 * self.k))
+        for _ in range(1, 3):
+            l = self._residual_block_down(l)
 
         # Output is 256x60x80 at this point
         l = self._residual_block_down(l, projection=True, increase_dim=True)
         for _ in range(1, 4):
             l = self._residual_block_down(l)
-        l_3 = l
 
         # Output is 512x30x40 at this point
         l = self._residual_block_down(l, projection=True, increase_dim=True)
         for _ in range(1, 6):
             l = self._residual_block_down(l)
-        l_4 = l
 
         # Output is 1024x16x20 at this point
         l = self._residual_block_down(l, projection=True, increase_dim=True)
@@ -205,7 +185,7 @@ class ResidualDepth(Network):
             l = self._residual_block_down(l)
 
         # Output is 2048x8x10 at this point
-        l = batch_norm(ConvLayer(l, num_filters=1024, filter_size=(1, 1),
+        l = batch_norm(ConvLayer(l, num_filters=int(self.k * 1024), filter_size=(1, 1),
                                  stride=(1, 1), nonlinearity=None, pad="same",
                                  W=lasagne.init.HeNormal(gain='relu'),
                                  flip_filters=False))
@@ -214,28 +194,20 @@ class ResidualDepth(Network):
         # 512x16x20
         l = self._residual_block_up(l, decrease_dim=True, padding=1,
                                     conv_filter=(4, 4), proj_filter=(4, 4))
-        l = self._residual_block_up(l)
-        l_7 = l
-        l = self._concat_compress(l_4, l_7, 512)
-
         # first expansive block. seventh stack of residuals, output is
         # 256x30x40
         l = self._residual_block_up(l, decrease_dim=True, padding=1,
                                     conv_filter=(4, 3), proj_filter=(4, 3))
-        l_8 = l
-        l = self._concat_compress(l_3, l_8, 256)
-
+                
         # residual block #8, output is 128x60x80
         l = self._residual_block_up(l, decrease_dim=True, padding=1,
                                     conv_filter=(4, 3), proj_filter=(4, 3))
-        l_9 = l
-        l = self._concat_compress(l_2, l_9, 128)
 
         # residual block #9, output is 64x120x160
         l = self._residual_block_up(l, decrease_dim=True)
 
         # Final convolution
-        l = ConvLayer(l, num_filters=1, filter_size=(1, 1), stride=(1, 1), nonlinearity=rectify,
+        l = ConvLayer(l, num_filters=1, filter_size=(3, 3), stride=(1, 1), nonlinearity=rectify,
                       pad="same",
                       W=lasagne.init.HeNormal(gain='relu'), flip_filters=False)
         return [l]

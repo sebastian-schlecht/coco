@@ -27,6 +27,9 @@ class DatabaseReader(object):
         self.randomize_access = randomize_access
         self.can_read = True
 
+    def permute(self):
+        raise NotImplementedError()
+    
     def iterate(self, batch_size=8, func=None):
         """
         Single thread iteration through the data
@@ -90,6 +93,9 @@ class HDF5DatabaseReader(DatabaseReader):
 
         return self.f[self.image_key].shape[0]
 
+    def permute(self):
+        self.permutation = np.random.permutation(self.num_samples())
+    
     def setup_read(self, db, randomize_access=False):
         super(HDF5DatabaseReader, self).setup_read(db)
         self.row_idx = 0
@@ -97,7 +103,8 @@ class HDF5DatabaseReader(DatabaseReader):
 
         self.randomize_access = randomize_access
         if self.randomize_access:
-            self.permutation = np.random.permutation(self.num_samples())
+            self.permute()
+            
 
     def next_batch(self, batch_size=8):
         if not self.db:

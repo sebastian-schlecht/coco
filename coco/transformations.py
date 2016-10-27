@@ -24,6 +24,13 @@ def flip_x(images, labels, deterministic=False):
             labels[i] = A.flip_x(labels[i])
     return images, labels
 
+def exp(images, labels, deterministic=False):
+    if deterministic:
+        return images, labels
+    for i in range(images.shape[0]):
+        lvl = np.random.randint(0,20)
+        images[i] = A.exp(images[i], lvl)
+    return images, labels
 
 def random_rgb(images, labels, deterministic=False):
     if deterministic:
@@ -36,6 +43,12 @@ def random_rgb(images, labels, deterministic=False):
         images[i] = A.mult_rgb(images[i], f=(r, g, b))
     return images, labels
 
+def noise(images, labels, deterministic=False):
+    if deterministic:
+        return images, labels
+    for i in range(images.shape[0]):
+        images[i] = A.add_noise(images[i])
+    return images, labels
 
 def normalize_images(images, labels, mean, std=None):
     for i in range(images.shape[0]):
