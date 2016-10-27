@@ -54,10 +54,10 @@ class DepthPredictionScaffolder(Scaffolder):
         self.inference_outputs = [val_test_prediction]
         
         self.lr_schedule = {
-            1: 0.01,
-            2: 0.1,
-            40: 0.01,
-            80: 0.001,
+            1: 0.001,
+            2: 0.01,
+            40: 0.001,
+            80: 0.0001,
         }
 
 

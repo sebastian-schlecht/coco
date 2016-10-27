@@ -1,11 +1,12 @@
 from multiprocessing import Process, Queue, Lock
+import numpy as np
 import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 
-def thread_proc(queue, func, db, batch_size, lock):
+def thread_proc(queue, func, db, batch_size, lock, wid):
     """
     Main thread procedure
     :param queue: The process-safe queue
@@ -13,9 +14,11 @@ def thread_proc(queue, func, db, batch_size, lock):
     :param db: The classdatabase builder instance to call next on
     :param batch_size: The batch size to use
     :param lock: lock to protect the db builder
+    :param wid: worker id
     :return:
     """
     if db.randomize_access:
+        np.random.seed(42*wid)
         db.permute()
     while True:
         # Pull data from db
@@ -85,8 +88,8 @@ class MultiProcessor(object):
                 logger.warn(
                     "You are spawning multiple database-reader without randomized access order. This will lead to non uniform distributions of data as database-readers cannot share db-cursors at the moment.")
 
-        for pp in range(parallelism):
-            args = (self.q, self.func, self.db, self.batch_size, self.lock)
+        for wid in range(parallelism):
+            args = (self.q, self.func, self.db, self.batch_size, self.lock, wid)
             p = Process(target=thread_proc, args=args)
             p.daemon = True
             self.processes.append(p)

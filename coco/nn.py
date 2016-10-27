@@ -176,12 +176,14 @@ class Scaffolder(object):
         current_job.set("state", Scaffolder.STATE_RUN)
 
     def save(self, filename):
+        logger.info("Saving parameters to file '%s'" % filename)
         if self.network:
             self.network.save(filename)
         else:
             raise AssertionError("Network instance hasn't been create yet.")
 
     def load(self, filename):
+        logger.info("Loading parameters from file '%s'" % filename)
         if self.network:
             self.network.load(filename)
         else:

@@ -78,6 +78,7 @@ def main():
     scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor, k=0.5)
 
     scaffolder.compile()
+    scaffolder.load("/data/data/resunet.npz")
     scaffolder.fit(100, job_name="nyu_depth", snapshot="/data/data/resunet.npz", parallelism=4)
     scaffolder.save("/data/data/resunet.npz")
 
