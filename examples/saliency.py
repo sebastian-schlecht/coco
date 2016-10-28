@@ -17,7 +17,7 @@ from coco.utils import compute_saliency
 
 def main():
     model = "./data/resnet50-food-101.npz"
-    image = "./data/sushi.jpg"
+    image = "./data/tartare.jpg"
 
     # Open the image file
     img = Image.open(image)
@@ -30,8 +30,8 @@ def main():
 
     # Create neural network model
     print("Building model and compiling functions...")
-    resnet = Resnet(input_var, 101)
-    name, network = resnet.output_layers.items()[0]
+    resnet = Resnet([input_var], 101)
+    network = resnet.output_layers[0]
     print("number of parameters in model: %d" % lasagne.layers.count_params(network, trainable=True))
 
     # Create a loss expression for validation/testing
