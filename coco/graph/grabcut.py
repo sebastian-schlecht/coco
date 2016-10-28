@@ -1,3 +1,6 @@
+"""
+Credits: source code borrowed & adapted from https://github.com/ahaque/cs231b
+"""
 import numpy as np
 from gmm import GMM
 import maxflow
@@ -7,7 +10,7 @@ gamma = 50
 
 # If energy changes less than CONVERGENCE_CRITERIA percent from the last iteration
 # we will terminate
-CONVERGENCE_CRITERON = 0.02
+CONVERGENCE_CRITERION = 0.02
 
 
 # Given an image and bounding box, initializes a foreground and a background
@@ -120,7 +123,6 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels):
 # Given an image (z), computes the expected difference between neighboring
 # pixels, and returns the corresponding beta value.
 def compute_beta_vectorized(z):
-    accumulator = 0
     m = z.shape[0]
     n = z.shape[1]
 
@@ -213,7 +215,7 @@ def compute_smoothness_vectorized(z, neighborhood='eight', compute_dict=False):
 # This function contains the actual implementation of the entire grabcut
 # algorithm using saliency seed points to estimate the GMM colour model
 def saliency_grabcut(img, saliency, num_iterations=10,
-            num_components=5, get_all_segmentations=False):
+                     num_components=5, get_all_segmentations=False):
     alpha, foreground_gmm, background_gmm = initialization(img, saliency, num_components=num_components)
     k = np.zeros((img.shape[0], img.shape[1]), dtype=int)
     pairwise_energies = compute_smoothness_vectorized(img, neighborhood='eight')
@@ -253,7 +255,6 @@ def saliency_grabcut(img, saliency, num_iterations=10,
                 for w in xrange(img.shape[1]):
                     index = h * img.shape[1] + w
                     # If pixel is outside of bounding box, assign large unary energy
-
                     if h < 2 or w < 2 or img.shape[0] - h < 2 or img.shape[1] - w < 2:
                         w1 = 1e9
                         w2 = 0
@@ -302,11 +303,8 @@ def saliency_grabcut(img, saliency, num_iterations=10,
             partition = np.array([graph.get_segment(i) for i in range(graph.get_node_num())])
 
             partition = partition.reshape(alpha.shape)
-            num_changed_pixels = np.sum(np.abs(partition - alpha))
             alpha = partition
             segmentations.append(alpha)
-
-            relative_change = num_changed_pixels / float(img.shape[0] * img.shape[1])
         else:
             break
 
