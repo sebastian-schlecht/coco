@@ -40,7 +40,7 @@ class DepthPredictionScaffolder(Scaffolder):
 
         params = lasagne.layers.get_all_params(output_layer, trainable=True)
         self.updates = lasagne.updates.nesterov_momentum(
-            cost, params, learning_rate=self.lr, momentum=0.98)
+            cost, params, learning_rate=self.lr, momentum=0.9)
 
         # Set proper variables
         self.train_inputs = [input, targets]
