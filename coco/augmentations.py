@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG)
 def exp(image, level):
     """
     Change the exposure in an RGB image
-    :param img: np.array
+    :param image: np.array
     :param level: Number
     :return: Image
     """

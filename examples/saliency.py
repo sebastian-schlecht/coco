@@ -71,7 +71,7 @@ def main():
         current_img -= mean
 
         current_img = current_img[:, :, 16:240, 16:240]
-        tmp_saliency = compute_saliency(input_var, network, current_img)
+        tmp_saliency = compute_saliency(resnet.input_layers[0], network, current_img)
         # Given the saliency map accross all input channels, we simply take the maximum value for each channel
         # in order to obtain spatial information only
         tmp_saliency = tmp_saliency.max(axis=2)

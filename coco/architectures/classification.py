@@ -12,13 +12,19 @@ from lasagne.nonlinearities import softmax, rectify
 from lasagne.layers import batch_norm
 
 from coco.nn import Network
+from coco.utils import compute_saliency
 
 
 class Resnet(Network):
     def __init__(self, inputs, num_classes, filter_config=(3, 4, 6, 3)):
         self.num_classes = num_classes
         self.filter_config = filter_config
+        self._input_layer = None
+        self._output_layer = None
         super(Resnet, self).__init__(inputs=inputs)
+
+    def compute_saliency(self, x):
+        return compute_saliency(self._input_layer, self._output_layer, x)
 
     def init(self):
         def residual_block(l, increase_dim=False, projection=False, pad=True, force_output=None):
@@ -76,11 +82,12 @@ class Resnet(Network):
             return block
 
         # Building the network
-        l_in = InputLayer(shape=(None, 3, 224, 224), input_var=self.inputs[0])
+        self._input_layer = InputLayer(shape=(None, 3, 224, 224), input_var=self.inputs[0])
+        self.input_layers.append(self._input_layer)
 
         # First batch normalized layer and pool
         l = batch_norm(
-            ConvLayer(l_in, num_filters=64, filter_size=(7, 7), stride=(2, 2), nonlinearity=rectify,
+            ConvLayer(self._input_layer, num_filters=64, filter_size=(7, 7), stride=(2, 2), nonlinearity=rectify,
                       W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
         l = PoolLayer(l, pool_size=(3, 3), stride=(2, 2))
 
@@ -104,9 +111,9 @@ class Resnet(Network):
         l = GlobalPoolLayer(l)
 
         # fully connected layer
-        l = DenseLayer(
+        self._output_layer = DenseLayer(
             l, num_units=self.num_classes,
             W=lasagne.init.HeNormal(),
             nonlinearity=softmax)
 
-        return [l]
+        return [self._output_layer]

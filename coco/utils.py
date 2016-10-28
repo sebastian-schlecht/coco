@@ -19,19 +19,19 @@ def grad_scale(layer, scale):
     return layer
 
 
-def compute_saliency(input, output_layer, X, loss_function=binary_crossentropy, aggregate=lambda x: x):
+def compute_saliency(input_layer, output_layer, X, loss_function=binary_crossentropy, aggregate=lambda x: x):
     """
     Compute a static saliency representation for a given input tensor X
     From https://github.com/dnouri/nolearn
-    :param input:
-    :param output:
+    :param input_layer:
+    :param output_layer:
     :param X:
     :param loss_function:
     :param aggregate:
     :return:
     """
     output = get_output(output_layer, deterministic=True)
-    scores = output.eval({input: X})
+    scores = output.eval({input_layer.input_var: X})
 
     pred = scores.argmax(axis=1)
     # Use some epsilon value to prevent rounding of the maximally likely classes to 100% and thus yield 0 error
