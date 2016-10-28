@@ -62,10 +62,10 @@ def main():
     train_db = "/data/data/nyu_v2.hdf5"
     val_db = "/data/data/test_v2.hdf5"
 
-    batch_size = 64
+    batch_size = 16
 
     train_reader = HDF5DatabaseReader(label_key="depths")
-    train_reader.setup_read(train_db, randomize_access=True)
+    train_reader.setup_read(train_db)
 
     val_reader = HDF5DatabaseReader(label_key="depths")
     val_reader.setup_read(val_db)
@@ -75,11 +75,11 @@ def main():
     val_processor = MultiProcessor(
         val_reader, func=process_val, batch_size=batch_size)
 
-    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor, k=0.5)
-
+    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
+    
     scaffolder.compile()
-    scaffolder.load("/data/data/resunet.npz")
-    scaffolder.fit(100, job_name="nyu_depth", snapshot="/data/data/resunet.npz", parallelism=4)
+    
+    scaffolder.fit(80, job_name="nyu_depth", snapshot="/data/data/resunet.npz")
     scaffolder.save("/data/data/resunet.npz")
 
 if __name__ == "__main__":
