@@ -47,9 +47,17 @@ class MultiProcessor(object):
         logger.debug("Creating multiprocessor instance with batchsize=%i and queue_size=%i" % (batch_size, qsize))
 
     def num_samples(self):
+        """
+        Return the number of samples of the underlying db reader interface
+        :return:
+        """
         return self.db.num_samples()
     
     def num_batches(self):
+        """
+        Calculate the number of samples in the db
+        :return:
+        """
         return self.num_samples() // self.batch_size
 
     def iterate(self, batches=None):

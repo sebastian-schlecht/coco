@@ -4,6 +4,13 @@ import coco.augmentations as A
 
 
 def zoom_rotate(images, labels, deterministic=False):
+    """
+    Zoom and rotate images and labels in conjunction
+    :param images:
+    :param labels:
+    :param deterministic:
+    :return:
+    """
     if deterministic:
         return images, labels
     for i in range(images.shape[0]):
@@ -13,6 +20,13 @@ def zoom_rotate(images, labels, deterministic=False):
 
 
 def flip_x(images, labels, deterministic=False):
+    """
+    Flip images along x axis
+    :param images:
+    :param labels:
+    :param deterministic:
+    :return:
+    """
     if deterministic:
         return images, labels
 
@@ -24,33 +38,66 @@ def flip_x(images, labels, deterministic=False):
             labels[i] = A.flip_x(labels[i])
     return images, labels
 
+
 def exp(images, labels, deterministic=False):
+    """
+    Change exposure of the images
+    :param images:
+    :param labels:
+    :param deterministic:
+    :return:
+    """
     if deterministic:
         return images, labels
     for i in range(images.shape[0]):
-        lvl = np.random.randint(0,20)
+        lvl = np.random.randint(0, 20)
         images[i] = A.exp(images[i], lvl)
     return images, labels
 
+
 def random_rgb(images, labels, deterministic=False):
+    """
+    Scale pixels with random RGB values
+    :param images:
+    :param labels:
+    :param deterministic:
+    :return:
+    """
     if deterministic:
         return images, labels
     for i in range(images.shape[0]):
         # Random RGB
-        r = np.random.randint(85,116) / 100.
-        g = np.random.randint(85,116) / 100.
-        b = np.random.randint(85,116) / 100.
+        r = np.random.randint(85, 116) / 100.
+        g = np.random.randint(85, 116) / 100.
+        b = np.random.randint(85, 116) / 100.
         images[i] = A.mult_rgb(images[i], f=(r, g, b))
     return images, labels
 
+
 def noise(images, labels, deterministic=False):
+    """
+    Add gaussian noise to the image
+    :param images:
+    :param labels:
+    :param deterministic:
+    :return:
+    """
     if deterministic:
         return images, labels
     for i in range(images.shape[0]):
         images[i] = A.add_noise(images[i])
     return images, labels
 
+
 def normalize_images(images, labels, mean, std=None):
+    """
+    Normalize images by subtracting mean and dividing be their std
+    :param images:
+    :param labels:
+    :param mean:
+    :param std:
+    :return:
+    """
     for i in range(images.shape[0]):
         images[i] -= mean
         if std:
@@ -59,6 +106,14 @@ def normalize_images(images, labels, mean, std=None):
 
 
 def clip(images, labels, ic=None, lc=None):
+    """
+    Clip images. Mostly to shift values in meaningful range
+    :param images:
+    :param labels:
+    :param ic:
+    :param lc:
+    :return:
+    """
     if ic:
         images = images.clip(ic[0], ic[1])
     if lc:
@@ -67,6 +122,13 @@ def clip(images, labels, ic=None, lc=None):
 
 
 def downsample(images, labels, factors):
+    """
+    Downsample images numpy style. X and Y along the same factor
+    :param images:
+    :param labels:
+    :param factors:
+    :return:
+    """
     if len(images.shape) == 4:
         i = images[:, :, ::factors[0], ::factors[0]]
     else:
@@ -80,6 +142,14 @@ def downsample(images, labels, factors):
 
 
 def random_crop(images, labels, size, deterministic=False):
+    """
+    Crop images randomly
+    :param images:
+    :param labels:
+    :param size:
+    :param deterministic:
+    :return:
+    """
     h, w = size
     new_image_shape = list(images.shape)
     new_image_shape[-2] = h

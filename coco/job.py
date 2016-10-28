@@ -15,26 +15,51 @@ class Job(object):
         self.data = {}
 
     def save(self, compress=3):
+        """
+        Persist the job
+        :param compress:
+        :return:
+        """
         filename = "%s/%s" % (JOB_DIR, self.name)
         Job.conditionally_create_dir(filename)
         joblib.dump(self.data, filename, compress=compress)
 
     def load(self):
+        """
+        Load the job from disk
+        :return:
+        """
         filename = "%s/%s" % (JOB_DIR, self.name)
         self.data = joblib.load(filename)
 
     def set(self, name, value):
+        """
+        Store a value in the job data dictionary
+        :param name:
+        :param value:
+        :return:
+        """
         self.data[name] = value
         self.save()
 
     @staticmethod
     def from_name(name):
+        """
+        Create a job from a name as string
+        :param name:
+        :return:
+        """
         j = Job(name)
         j.load()
         return j
 
     @staticmethod
     def conditionally_create_dir(filename):
+        """
+        Helper method to conditionally create directories if needed
+        :param filename:
+        :return:
+        """
         if not os.path.exists(os.path.dirname(filename)):
             try:
                 os.makedirs(os.path.dirname(filename))

@@ -25,6 +25,9 @@ class Scaffolder(object):
     STATE_FINISH = "state_finish"
 
     def __init__(self, network_type, train_reader=None, val_reader=None, test_reader=None, inference=False, **kwargs):
+        if not train_reader and not inference:
+            raise AssertionError("Need either a training graph or an inference graph to compile.")
+
         self._compiled = False
 
         self.train_inputs = []
@@ -73,6 +76,10 @@ class Scaffolder(object):
         raise NotImplementedError()
 
     def compile(self):
+        """
+        Compile all expressions needed
+        :return:
+        """
         if self.train_reader:
             logger.info("Compiling training function.")
             self.train_fn = theano.function(self.train_inputs, self.train_outputs, updates=self.updates)
@@ -90,9 +97,22 @@ class Scaffolder(object):
         self._compiled = True
 
     def infer(self, inputs):
+        """
+        Infer predictions from input values
+        :param inputs:
+        :return:
+        """
         return self.inference_fn(inputs)
 
     def fit(self, n_epochs, job_name=None, snapshot=None, parallelism=1):
+        """
+        Train the network
+        :param n_epochs:
+        :param job_name:
+        :param snapshot:
+        :param parallelism:
+        :return:
+        """
         if not self._compiled:
             raise AssertionError("Models are not compiled. Call 'compile()' first.")
 
@@ -109,10 +129,10 @@ class Scaffolder(object):
         assert 1 in self.lr_schedule
 
         current_job.set("state", Scaffolder.STATE_RUN)
-        
-        for epoch in range(1, n_epochs+1):
+
+        for epoch in range(1, n_epochs + 1):
             current_job.set("epoch", epoch)
-            
+
             batch_times = 0
             batch_index = 0
             epoch_start = time.time()
@@ -135,7 +155,7 @@ class Scaffolder(object):
                 self.on_batch_end(Scaffolder.PHASE_TRAIN)
                 if batch_index % 100 == 0:
                     current_job.set("train_losses", self.train_losses)
-                    
+
                 if batch_index == 20 and epoch == 1:
                     time_per_batch = batch_times / batch_index
                     total_dur = n_epochs * (time_per_batch * self.train_reader.num_batches())
@@ -144,8 +164,7 @@ class Scaffolder(object):
                     logger.info("Average time per forward/backward pass: " + str(time_per_batch))
                     logger.info("Expected duration for training: " + str(total_dur) + "s")
                     logger.info("ETA: %s", str(localtime))
-                
-            
+
             if self.val_reader:
                 current_job.set("phase", Scaffolder.PHASE_VAL)
                 for batch in self.val_reader.iterate():
@@ -154,7 +173,6 @@ class Scaffolder(object):
                     self.val_losses.append(err)
                     self.on_batch_end(Scaffolder.PHASE_VAL)
                 current_job.set("val_losses", self.val_losses)
-                    
 
             if self.test_reader:
                 current_job.set("phase", Scaffolder.PHASE_TEST)
@@ -176,6 +194,11 @@ class Scaffolder(object):
         current_job.set("state", Scaffolder.STATE_RUN)
 
     def save(self, filename):
+        """
+        Store underlying network interface's weights
+        :param filename:
+        :return:
+        """
         logger.info("Saving parameters to file '%s'" % filename)
         if self.network:
             self.network.save(filename)
@@ -183,6 +206,11 @@ class Scaffolder(object):
             raise AssertionError("Network instance hasn't been create yet.")
 
     def load(self, filename):
+        """
+        Load underlying network interface's weights from disk
+        :param filename:
+        :return:
+        """
         logger.info("Loading parameters from file '%s'" % filename)
         if self.network:
             self.network.load(filename)
@@ -190,9 +218,18 @@ class Scaffolder(object):
             raise AssertionError("Network instance hasn't been create yet.")
 
     def on_epoch_end(self):
+        """
+        Epoch hook
+        :return:
+        """
         pass
 
     def on_batch_end(self, phase):
+        """
+        On batch end hook
+        :param phase:
+        :return:
+        """
         pass
 
 
@@ -220,18 +257,33 @@ class Network(object):
         raise NotImplementedError()
 
     def _post_init(self):
+        """
+        Perform some post init sanity checks
+        :return:
+        """
         for layer in self.output_layers:
             # Count parameters for outlet
             logger.debug(
-                "Number of parameters for output '%s': %i" % (layer.name, lasagne.layers.count_params(layer, trainable=True)))
+                "Number of parameters for output '%s': %i" % (
+                    layer.name, lasagne.layers.count_params(layer, trainable=True)))
 
     def save(self, filename):
+        """
+        Save network weights to disk
+        :param filename:
+        :return:
+        """
         network = self.output_layers[0]
         np.savez(filename, *lasagne.layers.get_all_param_values(network))
 
     def load(self, filename):
+        """
+        Load network weights from disk
+        :param filename:
+        :return:
+        """
         # load network weights from model file
         network = self.output_layers[0]
         with np.load(filename) as f:
-             param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+            param_values = [f['arr_%d' % i] for i in range(len(f.files))]
         lasagne.layers.set_all_param_values(network, param_values)

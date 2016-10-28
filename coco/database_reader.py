@@ -28,8 +28,12 @@ class DatabaseReader(object):
         self.can_read = True
 
     def permute(self):
+        """
+        Permute the data in the db. Could either shuffle it or simply change access indices
+        :return:
+        """
         raise NotImplementedError()
-    
+
     def iterate(self, batch_size=8, func=None):
         """
         Single thread iteration through the data
@@ -75,10 +79,19 @@ class HDF5DatabaseReader(DatabaseReader):
         self.f = None
 
     def db_exists(self, db):
+        """
+        Check whether the db is already there
+        :param db:
+        :return:
+        """
         # HDF5 is file based
         return os.path.isfile(db)
 
     def num_samples(self):
+        """
+        Number of samples in the db
+        :return:
+        """
         if self.f is None:
             raise AssertionError("Please call setup_read first.")
 
@@ -89,14 +102,25 @@ class HDF5DatabaseReader(DatabaseReader):
             raise AssertionError("Key %s not found in database. Check your label key" % self.label_key)
 
         if self.f[self.label_key].shape[0] != self.f[self.image_key].shape[0]:
-            raise AssertionError("The number of elements in the images blob does not match the number of elements in the labels blob.")
+            raise AssertionError(
+                "The number of elements in the images blob does not match the number of elements in the labels blob.")
 
         return self.f[self.image_key].shape[0]
 
     def permute(self):
+        """
+        Permute the dataset
+        :return:
+        """
         self.permutation = np.random.permutation(self.num_samples())
-    
+
     def setup_read(self, db, randomize_access=False):
+        """
+        Setup read access
+        :param db:
+        :param randomize_access:
+        :return:
+        """
         super(HDF5DatabaseReader, self).setup_read(db)
         self.row_idx = 0
         self.f = h5py.File(self.db)
@@ -104,9 +128,13 @@ class HDF5DatabaseReader(DatabaseReader):
         self.randomize_access = randomize_access
         if self.randomize_access:
             self.permute()
-            
 
     def next_batch(self, batch_size=8):
+        """
+        Pull the next batch from the database
+        :param batch_size:
+        :return:
+        """
         if not self.db:
             raise AssertionError("Database not set. Please call setup_read() before calling next_batch().")
 
@@ -123,7 +151,7 @@ class HDF5DatabaseReader(DatabaseReader):
             excerpt = self.f[self.image_key][perm], self.f[self.label_key][perm]
         else:
             excerpt = self.f[self.image_key][start_idx:start_idx + batch_size], self.f[self.label_key][
-                                                                          start_idx:start_idx + batch_size]
+                                                                                start_idx:start_idx + batch_size]
 
         return excerpt
 
@@ -144,7 +172,8 @@ class HDF5DatabaseReader(DatabaseReader):
             raise UserWarning("Batchisze %i is higher than total number of samples %i" % (batch_size, n))
 
         for start_idx in range(0, n - batch_size + 1, batch_size):
-            data,label = self.f[self.image_key][start_idx:start_idx + batch_size], self.f[self.label_key][start_idx:start_idx + batch_size]
+            data, label = self.f[self.image_key][start_idx:start_idx + batch_size], self.f[self.label_key][
+                                                                                    start_idx:start_idx + batch_size]
             if func is not None:
-                data, label = func(data,label)
+                data, label = func(data, label)
             yield data, label

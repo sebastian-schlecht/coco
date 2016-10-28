@@ -92,6 +92,7 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
     """
     Class to read images from a folder and feed a HDF5 database
     """
+
     @classmethod
     def db_exists(cls, db):
         # HDF5 is file based
@@ -110,7 +111,7 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
         image_ds = f.create_dataset('images', (0, 0, 0, 0),
                                     maxshape=(None, None, None, None),
                                     dtype=np.uint8,
-                                    chunks=(BLOCK_SIZE, 3 , shape[0], shape[1]))
+                                    chunks=(BLOCK_SIZE, 3, shape[0], shape[1]))
         label_ds = f.create_dataset('labels', (0, 0),
                                     maxshape=(None, None),
                                     dtype=np.uint8,
@@ -129,7 +130,7 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
 
         random.shuffle(item_list)
         BLOCK_SIZE = min(BLOCK_SIZE, len(item_list))
-        for index in range(0,len(item_list) - BLOCK_SIZE + 1, BLOCK_SIZE):
+        for index in range(0, len(item_list) - BLOCK_SIZE + 1, BLOCK_SIZE):
             logger.debug("Processing block %i out of %i" % (index, len(item_list) - BLOCK_SIZE + 1))
             block = item_list[index:index + BLOCK_SIZE]
             # Read images
@@ -213,7 +214,7 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
                 if frac is None:
                     continue
                 n = int(frac * _len)
-                new_list = _list[idx:idx+n]
+                new_list = _list[idx:idx + n]
                 idx += n
                 results[PARTS[i]][key] = new_list
 
@@ -241,6 +242,5 @@ class HDF5ClassDatabaseBuilder(ClassDatabaseBuilder):
                 processes.append(p)
         for p in processes:
             p.join()
-
 
         return files
