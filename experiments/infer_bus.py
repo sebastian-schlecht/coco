@@ -12,7 +12,7 @@ sys.path.insert(0, parentdir)
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
 from coco.architectures.regression import BURegressionScaffolder, BURegressor
-from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
+from coco.transformations import random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
 
 global mean
 mean = np.load("/data/food3d/f3d-train.npy")
@@ -26,20 +26,16 @@ def process_train(images, labels):
     size = (228, 304)
     
     global mean
-    # Loop labels through but return the copy. Not efficient but we don't need to augment the training labels here
-    labels_copy = labels.copy()
-    images, labels = flip_x(images, labels)
-    images, labels = exp(images, labels)
-    images, labels = zoom_rotate(images, labels)
-    images, labels = random_rgb(images, labels)
-    images, labels = clip(images, labels, ic=(0. ,255.))
     
-    images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
+    images, _ = exp(images, labels)
+    images, _ = random_rgb(images, labels)
+    images, _ = clip(images, labels, ic=(0. ,255.))
+  
+    images, _ = normalize_images(images, labels, mean, std=71.571201304890508)
     
-    images, labels = random_crop(images, labels, size)
-    images, labels = downsample(images, labels, (1, 2))
-
-    return images, labels_copy
+    images, _ = random_crop(images, None, size)
+    
+    return images, labels
 
 
 def process_val(images, labels):
@@ -48,15 +44,12 @@ def process_val(images, labels):
 
     assert images.shape[0] == labels.shape[0]
     global mean
-    # Same as in process_train
-    labels_copy = labels.copy()
 
     size = (228, 304)
-    images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
-    images, labels = random_crop(images, labels, size, deterministic=True)
-    images, labels = downsample(images, labels, (1, 2))
+    images, _ = normalize_images(images, labels, mean, std=71.571201304890508)
+    images, _ = random_crop(images, None, size, deterministic=True)
 
-    return images, labels_copy
+    return images, labels
 
 
 def main():
@@ -65,7 +58,7 @@ def main():
 
     batch_size = 16
 
-    train_reader = HDF5DatabaseReader(label_key="depths")
+    train_reader = HDF5DatabaseReader(label_key="bus")
     train_reader.setup_read(train_db)
 
     val_reader = HDF5DatabaseReader(label_key="bus")

@@ -80,7 +80,7 @@ class BURegressor(Network):
             return block
 
         # Building the network
-        self._input_layer = InputLayer(shape=(None, 3, 224, 224), input_var=self.inputs[0])
+        self._input_layer = InputLayer(shape=(None, 3, 228, 304), input_var=self.inputs[0])
         self.input_layers.append(self._input_layer)
 
         # First batch normalized layer and pool
@@ -123,7 +123,10 @@ class BURegressor(Network):
 class BURegressionScaffolder(Scaffolder):
     def setup(self):
         input = T.tensor4("input")
-        targets = T.tensor3("targets")
+        targets = T.fvector("targets")
+        
+        # We need to expand the dimensions since the net will produce matrices of shape (n, 1) 
+        targets_reshaped = targets.dimshuffle((0, "x"))
 
         self.network = self.network_type([input], **self.args)
         output_layer = self.network.output_layers[0]
@@ -131,8 +134,8 @@ class BURegressionScaffolder(Scaffolder):
         prediction = lasagne.layers.get_output(output_layer)
         val_test_prediction = lasagne.layers.get_output(output_layer, deterministic=True)
 
-        train_loss = mse(prediction, targets)
-        val_test_loss = mse(val_test_prediction, targets)
+        train_loss = mse(prediction, targets_reshaped)
+        val_test_loss = mse(val_test_prediction, targets_reshaped)
 
         # Weight decay
         all_layers = lasagne.layers.get_all_layers(output_layer)
