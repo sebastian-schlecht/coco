@@ -65,12 +65,13 @@ class Scaffolder(object):
         self.inference = inference
 
         self.lr = theano.shared(lasagne.utils.floatX(0.01))
+        self.momentum = theano.shared(lasagne.utils.floatX(0.9))
 
         self.setup()
 
     def setup(self):
         """
-        Main routine to setu
+        Main routine to setup
         :return:
         """
         raise NotImplementedError()
@@ -104,7 +105,7 @@ class Scaffolder(object):
         """
         return self.inference_fn(inputs)
 
-    def fit(self, n_epochs, job_name=None, snapshot=None, parallelism=1):
+    def fit(self, n_epochs, job_name=None, snapshot=None, parallelism=1, lr_schedule=None, momentum=None):
         """
         Train the network
         :param n_epochs:
@@ -125,8 +126,14 @@ class Scaffolder(object):
         if self.test_reader:
             self.test_reader.start_daemons()
 
+        if not lr_schedule:
+            lr_schedule = self.lr_schedule
         # Make sure we know the lr to begin with
-        assert 1 in self.lr_schedule
+        assert 1 in lr_schedule
+        
+        # Adjust momentum if applicable
+        if momentum:
+            self.momentum.set_value(lasagne.utils.floatX(momentum))
 
         current_job.set("state", Scaffolder.STATE_RUN)
 
@@ -137,8 +144,8 @@ class Scaffolder(object):
             batch_index = 0
             epoch_start = time.time()
             # Adapt LR if necessary
-            if epoch in self.lr_schedule:
-                val = self.lr_schedule[epoch]
+            if epoch in lr_schedule:
+                val = lr_schedule[epoch]
                 logger.info("Setting LR to " + str(val))
                 self.lr.set_value(lasagne.utils.floatX(val))
             logger.info("Training Epoch %i" % (epoch))

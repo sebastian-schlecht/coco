@@ -29,18 +29,28 @@ class DepthPredictionScaffolder(Scaffolder):
         val_test_prediction = lasagne.layers.get_output(output_layer, deterministic=True)
 
         # Compile different functions for the phases
-        train_loss = berhu(prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=12.)
-        val_test_loss = mse(val_test_prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=12.)
+        if "loss" in self.args:
+            loss = self.args["loss"]
+        else:
+            loss = berhu
+        if "upper_bound" in self.args:
+            upper_bound = self.args["upper_bound"]
+        else:
+            upper_bound = 12.
+            
+            
+        train_loss = loss(prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=upper_bound)
+        val_test_loss = mse(val_test_prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=upper_bound)
 
         # Weight decay
         all_layers = lasagne.layers.get_all_layers(output_layer)
         l2_penalty = lasagne.regularization.regularize_layer_params(
-            all_layers, lasagne.regularization.l2) * 0.0001
+            all_layers, lasagne.regularization.l2) * 0.0002
         cost = train_loss + l2_penalty
 
         params = lasagne.layers.get_all_params(output_layer, trainable=True)
         self.updates = lasagne.updates.nesterov_momentum(
-            cost, params, learning_rate=self.lr, momentum=0.9)
+            cost, params, learning_rate=self.lr, momentum=self.momentum)
 
         # Set proper variables
         self.train_inputs = [input, targets]
@@ -57,8 +67,10 @@ class DepthPredictionScaffolder(Scaffolder):
         self.lr_schedule = {
             1:  0.001,
             2:  0.01,
-            30: 0.001,
-            60: 0.0001,
+            35: 0.005,
+            60: 0.002,
+            70: 0.0005,
+            80: 0.0001,
         }
 
 
@@ -147,36 +159,82 @@ class ResidualDepth(Network):
         l = PoolLayer(l, pool_size=(2,2))
 
         # Output is 64x60x80 at this point
-        l = residual_block(l, projection=True, force_output=int(self.k * 256))
-        for _ in range(1,3):
-            l = residual_block(l)
-        
+
+        # Save reference before downsampling
+        l_1 = l
+
+        l = residual_block(l, projection=True, force_output=int(256 * self.k))
+        l = residual_block(l)
+
+        l_2 = l
+
         # Output is 256x60x80 at this point
+
         l = residual_block(l, projection=True, increase_dim=True)
         for _ in range(1,4):
             l = residual_block(l)
+        l_3 = l
 
         # Output is 512x30x40 at this point
+
         l = residual_block(l, projection=True,increase_dim=True)
         for _ in range(1,6):
             l = residual_block(l)
+        l_4 = l
 
         # Output is 1024x16x20 at this point
+
         l = residual_block(l, projection=True,increase_dim=True)
         for _ in range(1,3):
             l = residual_block(l)
-        
+
+        # Output is 2048x8x10 at this point
+        l_5 = l
+
         # Compress filters
-        l = batch_norm(ConvLayer(l, num_filters=1024, filter_size=(1,1), stride=(1,1), nonlinearity=None, pad="same", W=lasagne.init.HeNormal(), flip_filters=False))
-        
+        l = batch_norm(ConvLayer(l, num_filters=int(self.k * 1024), filter_size=(1,1), stride=(1,1), nonlinearity=None, pad="same", W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+
+        l_6 = l
+
         ############################
         # Expansive path
         ############################
+
+        # first expansive block. seventh stack of residual,s output is 512x16x20
         l = residual_block_up(l, decrease_dim=True, padding=1, conv_filter=(4,4), proj_filter=(4,4))
-        l = residual_block_up(l, decrease_dim=True, padding=1, conv_filter=(4,3), proj_filter=(4,3))
-        l = residual_block_up(l, decrease_dim=True,  padding=1, conv_filter=(4,3), proj_filter=(4,3))
-        l = residual_block_up(l, decrease_dim=True)
+        l_7 = l
         
+        l = ConcatLayer([l_4,l_7])
+        # Compress channels
+        l = batch_norm(ConvLayer(l, num_filters=int(self.k * 512), filter_size=(3,3), stride=1, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+
+
+        # We have to cheat here in order to get our initial feature map dimensions back
+        # What we do is taking uneven filter dimensions to artificially generate the desired filter sizes
+
+        # Question: Does this make sense or would cropping the first and last pixel row work better?!
+
+        # first expansive block. seventh stack of residuals, output is 256x30x40
+        l = residual_block_up(l, decrease_dim=True, padding=1, conv_filter=(4,3), proj_filter=(4,3))
+        l_8 = l
+
+        
+        l = ConcatLayer([l_3,l_8])
+        l = batch_norm(ConvLayer(l, num_filters=int(self.k * 256), filter_size=(3,3), stride=1, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+
+        # residual block #8, output is 128x60x80
+        l = residual_block_up(l, decrease_dim=True,  padding=1, conv_filter=(4,3), proj_filter=(4,3))
+        l_9 = l
+
+        
+        l = ConcatLayer([l_2,l_9])
+        l = batch_norm(ConvLayer(l, num_filters=int(self.k * 128), filter_size=(3,3), stride=1, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+
+        # residual block #9, output is 64x120x160
+        l = residual_block_up(l, decrease_dim=True)
+        l_10 = l
+
         # Final convolution
         l = ConvLayer(l, num_filters=1, filter_size=(3,3), stride=(1,1), nonlinearity=rectify, pad="same", W=lasagne.init.HeNormal(gain='relu'), flip_filters=False)
+
         return [l]

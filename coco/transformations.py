@@ -15,7 +15,9 @@ def zoom_rotate(images, labels, deterministic=False):
         return images, labels
     for i in range(images.shape[0]):
         # Zoom and rotate
-        images[i], labels[i] = A.zoom_rot(images[i], labels[i])
+        p = np.random.randint(2)
+        if p > 0:
+            images[i], labels[i] = A.zoom_rot(images[i], labels[i])
     return images, labels
 
 
@@ -50,7 +52,7 @@ def exp(images, labels, deterministic=False):
     if deterministic:
         return images, labels
     for i in range(images.shape[0]):
-        lvl = np.random.randint(0, 20)
+        lvl = np.random.randint(0, 10)
         images[i] = A.exp(images[i], lvl)
     return images, labels
 

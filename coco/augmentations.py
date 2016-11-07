@@ -115,7 +115,7 @@ def zoom_rot(ii, dd):
     :param dd:
     :return:
     """
-    a = np.random.randint(-10, 10)
+    a = np.random.randint(-5, 5)
     ddr = rotate(dd, a, order=0, prefilter=False, reshape=False)
     iir = rotate(ii.transpose((1, 2, 0)), a, order=2, reshape=False)
 
