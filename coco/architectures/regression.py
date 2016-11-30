@@ -18,7 +18,8 @@ from coco.losses import mse
 
 
 class BURegressor(Network):
-    def __init__(self, inputs, filter_config=(3, 4, 6, 3)):
+    def __init__(self, inputs, with_depth=False, filter_config=(3, 4, 6, 3)):
+        self.with_depth = with_depth
         self.filter_config = filter_config
         self._input_layer = None
         self._output_layer = None
@@ -80,7 +81,12 @@ class BURegressor(Network):
             return block
 
         # Building the network
-        self._input_layer = InputLayer(shape=(None, 3, 228, 304), input_var=self.inputs[0])
+        if self.with_depth:
+            in_shape = (None, 4, 228, 304)
+        else:
+            in_shape = (None, 3, 228, 304)
+                
+        self._input_layer = InputLayer(shape=in_shape, input_var=self.inputs[0])
         self.input_layers.append(self._input_layer)
 
         # First batch normalized layer and pool
@@ -107,14 +113,11 @@ class BURegressor(Network):
 
         # average pooling
         l = GlobalPoolLayer(l)
-
-        # fully connected layer
-        l = DenseLayer(l, num_units=100, W=lasagne.init.HeNormal(), nonlinearity=None)
         
         # Output regressor unit
         self._output_layer = DenseLayer(
             l, num_units=1,
-            W=lasagne.init.HeNormal(),
+            W=lasagne.init.HeNormal(gain='relu'),
             nonlinearity=rectify)
 
         return [self._output_layer]
@@ -139,8 +142,9 @@ class BURegressionScaffolder(Scaffolder):
 
         # Weight decay
         all_layers = lasagne.layers.get_all_layers(output_layer)
+        
         l2_penalty = lasagne.regularization.regularize_layer_params(
-            all_layers, lasagne.regularization.l2) * 0.0001
+            all_layers, lasagne.regularization.l2) * 0.0002
         cost = train_loss + l2_penalty
 
         params = lasagne.layers.get_all_params(output_layer, trainable=True)
@@ -160,9 +164,7 @@ class BURegressionScaffolder(Scaffolder):
         self.inference_outputs = [val_test_prediction]
         
         self.lr_schedule = {
-            1:  0.001,
-            2:  0.01,
-            10: 0.005,
-            30: 0.002,
-            35: 0.0001,
+            1:  0.0005,
+            20: 0.00005,
+            38: 0.000005
         }

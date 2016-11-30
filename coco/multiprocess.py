@@ -44,7 +44,7 @@ class MultiProcessor(object):
         self.batch_size = batch_size
         self.lock = Lock()
         self.daemonized = False
-        logger.debug("Creating multiprocessor instance with batchsize=%i and queue_size=%i" % (batch_size, qsize))
+        logger.info("Creating multiprocessor instance with batchsize=%i and queue_size=%i" % (batch_size, qsize))
 
     def num_samples(self):
         """
@@ -86,7 +86,7 @@ class MultiProcessor(object):
         :param parallelism: int degree of parallelization over various processes
         :return:
         """
-        logger.debug("Starting daemons with parallelism=%i", parallelism)
+        logger.info("Starting daemons with parallelism=%i", parallelism)
         self.daemonized = True
         if parallelism < 1:
             raise ValueError(

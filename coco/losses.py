@@ -77,7 +77,7 @@ def berhu_spatial(predictions, targets, s=0.2, bounded=False, lower_bound=0.5, u
     m_dj = T.and_(mask_tensor[:, :, h:], mask_tensor[:, :, :-h])
 
     # Define spatial grad cost
-    grad_cost = T.sum(m_di * abs(p_di - t_di)) / T.sum(m_di) + T.sum(m_dj * abs(p_dj - t_dj)) / T.sum(m_dj)
+    grad_cost = T.sum(m_di * ((p_di - t_di) ** 2)) / T.sum(m_di) + T.sum(m_dj * ((p_dj - t_dj) ** 2)) / T.sum(m_dj)
     
     # Compute final expression
     return pixel_cost + grad_cost

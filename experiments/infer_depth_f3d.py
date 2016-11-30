@@ -36,23 +36,9 @@ def process_train(images, labels):
     
     images, labels = random_crop(images, labels, size)
     images, labels = downsample(images, labels, (1, 2))
-
-    return images, labels
-
-def process_train_2(images, labels):
-    images = images.astype(np.float32)
-    labels = labels.astype(np.float32)
-
-    assert images.shape[0] == labels.shape[0]
-
-    size = (228, 304)
     
-    global mean
-    images, labels = flip_x(images, labels)
-    images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
-    
-    images, labels = random_crop(images, labels, size)
-    images, labels = downsample(images, labels, (1, 2))
+    # Ommit large values
+    labels[labels > 1.2] = 0.
 
     return images, labels
 
@@ -68,6 +54,9 @@ def process_val(images, labels):
     images, labels = normalize_images(images, labels, mean, std=71.571201304890508)
     images, labels = random_crop(images, labels, size, deterministic=True)
     images, labels = downsample(images, labels, (1, 2))
+    
+    # Ommit large values
+    labels[labels > 1.2] = 0.
 
     return images, labels
 
@@ -98,8 +87,9 @@ def main():
         20: 0.0001
     }
     
-    scaffolder.fit(40, job_name="f3d_depth", snapshot="/data/data/resunet_f3d.npz", momentum=0.95, lr_schedule=lr_schedule)
-    scaffolder.save("/data/data/resunet_f3d.npz")
+    outfile = "/data/data/resunet_f3d_limited.npz"
+    scaffolder.fit(40, job_name="f3d_depth_limited", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
+    scaffolder.save(outfile)
     
     
 

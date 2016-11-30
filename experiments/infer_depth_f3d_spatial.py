@@ -93,8 +93,7 @@ def main():
     scaffolder = DepthPredictionScaffolder(ResidualDepth, 
                                            train_processor, 
                                            val_reader=val_processor,
-                                           loss=berhu_spatial,
-                                           upper_bound= 1.2)
+                                           loss=berhu_spatial)
     
     scaffolder.compile()
     scaffolder.load("/data/data/resunet.npz")

@@ -17,6 +17,8 @@ from coco.transformations import random_rgb, random_crop, normalize_images, down
 global mean
 mean = np.load("/data/food3d/f3d-train.npy")
 
+additive_noise = np.random.normal(0, 0.001, size=(1,1,228, 304)).astype(np.float32)
+
 def process_train(images, labels):
     images = images.astype(np.float32)
     labels = labels.astype(np.float32)
@@ -35,6 +37,10 @@ def process_train(images, labels):
     
     images, _ = random_crop(images, None, size)
     
+    # Add the noise channel
+    images = np.concatenate([images, additive_noise.repeat(images.shape[0], axis=0)], axis=1)
+    
+    
     return images, labels
 
 
@@ -48,6 +54,9 @@ def process_val(images, labels):
     size = (228, 304)
     images, _ = normalize_images(images, labels, mean, std=71.571201304890508)
     images, _ = random_crop(images, None, size, deterministic=True)
+    
+    # Add the noise channel
+    images = np.concatenate([images, additive_noise.repeat(images.shape[0], axis=0)], axis=1)
 
     return images, labels
 
@@ -72,12 +81,18 @@ def main():
     
     scaffolder = BURegressionScaffolder(BURegressor, 
                                            train_reader=train_processor, 
-                                           val_reader=val_processor)
+                                           val_reader=val_processor,
+                                           with_depth=True)
     
-    scaffolder.load("/data/data/resnet50-food-101-altered.npz", strict=False)
+    lr_schedule = {
+        1: 0.0001,
+        20: 0.0001,
+        38: 0.00001
+    }
+    scaffolder.load("/data/data/resnet50-food-101.npz", strict=False)
     scaffolder.compile()
-    out_file = "/data/data/bu_regressor_f3.npz"
-    scaffolder.fit(40, job_name="bu_regression_f3", snapshot=out_file, momentum=0.95)
+    out_file = "/data/data/bu_regressor_4channel_f3.npz"
+    scaffolder.fit(40, job_name="bu_regression_4channel_f3", snapshot=out_file, momentum=0.95, lr_schedule=lr_schedule)
     scaffolder.save(out_file)
     
     

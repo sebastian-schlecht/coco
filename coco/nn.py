@@ -171,6 +171,9 @@ class Scaffolder(object):
                     logger.info("Average time per forward/backward pass: " + str(time_per_batch))
                     logger.info("Expected duration for training: " + str(total_dur) + "s")
                     logger.info("ETA: %s", str(localtime))
+            
+            # In case we do have less than 100 batches, write back at the end to make sure we've got values
+            current_job.set("train_losses", self.train_losses)
 
             if self.val_reader:
                 current_job.set("phase", Scaffolder.PHASE_VAL)
@@ -212,15 +215,19 @@ class Scaffolder(object):
         else:
             raise AssertionError("Network instance hasn't been create yet.")
 
-    def load(self, filename):
+    def load(self, filename, strict=True):
         """
         Load underlying network interface's weights from disk
-        :param filename:
+        :param filename: Name of the parameter file
+        :param loosely: Do not throw when shapes won't match. Just skip that layer instance
         :return:
         """
         logger.info("Loading parameters from file '%s'" % filename)
         if self.network:
-            self.network.load(filename)
+            if not strict:
+                self.network.load_non_strict(filename)
+            else:
+                self.network.load(filename)
         else:
             raise AssertionError("Network instance hasn't been create yet.")
 
@@ -241,14 +248,25 @@ class Scaffolder(object):
 
 
 class Network(object):
-    def __init__(self, inputs):
+    
+    TRANSPLANT_MODE_DEFAULT = 1
+    
+    def __init__(self, inputs, **kwargs):
+        
         if type(inputs) != list:
             raise AssertionError("Please provide a list of tensor variables as inputs.")
+        
         self.output_layers = []
         self.input_layers = []
         self.last_layer = None
         self.registry = {}
         self.inputs = inputs
+        
+        # Weight transplant mode
+        self.transplant_mode = Network.TRANSPLANT_MODE_DEFAULT
+        if "transplant_mode" in kwargs:
+            self.transplant_mode = kwargs["transplant_mode"]
+        
         # In case some sub-class implements this, call it
         self.output_layers = self.init()
         if len(self.output_layers) != 1:
@@ -270,7 +288,7 @@ class Network(object):
         """
         for layer in self.output_layers:
             # Count parameters for outlet
-            logger.debug(
+            logger.info(
                 "Number of parameters for output '%s': %i" % (
                     layer.name, lasagne.layers.count_params(layer, trainable=True)))
 
@@ -294,3 +312,56 @@ class Network(object):
         with np.load(filename) as f:
             param_values = [f['arr_%d' % i] for i in range(len(f.files))]
         lasagne.layers.set_all_param_values(network, param_values)
+        
+    def _transplant(self, variable, value):
+        """
+        Try to transplant values into the target variable even if the shapes won't match
+        :param variable: Tensor variable
+        :param value: The new weights
+        """
+        if self.transplant_mode == Network.TRANSPLANT_MODE_DEFAULT:
+            # Try to transplant weights
+            old_value = variable.get_value()
+            # First thing we try is to simply assign the values
+            if old_value.shape == value.shape:
+                variable.set_value(value)
+                return
+            
+            # If that didn't work we try to partially assign the weights to the filters 
+            backup = variable.get_value()
+            try:
+                assert old_value.ndim == value.ndim
+                if old_value.size > value.size:
+                    logger.info("Parameter blob with shape %s needs transplant. Trying to fit source weights into target blob." % str(old_value.shape))
+                    # We currently only support the case that we can align the old values nicely inside the new blob
+                    if old_value.ndim == 4:
+                        old_value[0:value.shape[0], 0:value.shape[1], 0:value.shape[2], 0:value.shape[3]] = value
+                    elif old_value.ndim == 2:
+                        old_value[0:value.shape[0], 0:value.shape[1]] = value
+                else:
+                    logger.info("Skipping blob with shape %s. Too many source parameters." % str(old_value.shape))
+                     
+            except Exception as e:
+                logger.warn("Something went wrong while trying to transplant filters. Rolling back operation.")
+                logger.warn("Original warning: %s " % str(e))
+                variable.set_value(backup)
+            
+                
+        else:
+            raise ValueError("Unsupported transplant mode %s" % str(self.transplant_mode))
+        
+    def load_non_strict(self, filename):
+        network = self.output_layers[0]
+        with np.load(filename) as f:
+            values = [f['arr_%d' % i] for i in range(len(f.files))]
+            
+        params = lasagne.layers.get_all_params(network)
+        if len(params) != len(values):
+            raise ValueError("mismatch: got %d values to set %d parameters" %
+                         (len(values), len(params)))
+
+        for p, v in zip(params, values):
+            if p.get_value().shape != v.shape:
+                self._transplant(p, v)
+            else:
+                p.set_value(v)

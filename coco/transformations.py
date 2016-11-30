@@ -37,7 +37,7 @@ def flip_x(images, labels, deterministic=False):
         p = np.random.randint(2)
         if p > 0:
             images[i] = A.flip_x(images[i])
-            if labels:
+            if labels is not None:
                 labels[i] = A.flip_x(labels[i])
     return images, labels
 
@@ -159,7 +159,7 @@ def random_crop(images, labels, size, deterministic=False):
     new_image_shape[-1] = w
     new_images = np.zeros(new_image_shape, dtype=np.float32)
     
-    if labels:
+    if labels is not None:
         new_label_shape = list(labels.shape)
         new_label_shape[-2] = h
         new_label_shape[-1] = w
@@ -171,17 +171,17 @@ def random_crop(images, labels, size, deterministic=False):
             cy = (images.shape[2] - h) // 2
             cx = (images.shape[3] - w) // 2
             new_images[i] = A.crop(images[i], (cy, cx), (h, w))
-            if labels:
+            if labels is not None:
                 new_labels[i] = A.crop(labels[i], (cy, cx), (h, w))
     else:
         for i in range(images.shape[0]):
             cy = np.random.randint(images.shape[2] - h)
             cx = np.random.randint(images.shape[3] - w)
             new_images[i] = A.crop(images[i], (cy, cx), (h, w))
-            if labels:
+            if labels is not None:
                 new_labels[i] = A.crop(labels[i], (cy, cx), (h, w))
 
-    if labels:
+    if labels is not None:
         return new_images, new_labels
     else:
         return new_images, labels

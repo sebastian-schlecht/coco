@@ -43,6 +43,9 @@ class Job(object):
         self.save()
 
     @staticmethod
+    def list():
+        return os.listdir(JOB_DIR)
+    @staticmethod
     def from_name(name):
         """
         Create a job from a name as string

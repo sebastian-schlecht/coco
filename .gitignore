@@ -3,7 +3,8 @@ venv/
 *.pyc
 .idea/
 data/
-.npz
-.npy
+*.npz
+*.npy
 .ipynb_checkpoints
-.ipynb
+*.hdf5
+*.pkl
