@@ -38,4 +38,4 @@ def compute_saliency(input_layer, output_layer, X, loss_function=binary_crossent
     e = 0.0000001
     score = -loss_function(output[:, pred] - e, np.array([1])).sum()
 
-    return aggregate(np.abs(T.grad(score, input).eval({input: X}))[0].transpose(1, 2, 0).squeeze())
+    return aggregate(np.abs(T.grad(score, input_layer.input_var).eval({input_layer.input_var: X}))[0].transpose(1, 2, 0).squeeze())
