@@ -117,20 +117,9 @@ def zoom_rot(ii, dd):
     """
     a = np.random.randint(-5, 5)
     ddr = rotate(dd, a, order=0, prefilter=False, reshape=False)
-    iir = rotate(ii.transpose((1, 2, 0)), a, order=2, reshape=False)
+    iir = rotate(ii.transpose((1, 2, 0)), a, prefilter=False, order=0, reshape=False)
 
-    rads = (abs(a) / 180.) * math.pi
-
-    h = ii.shape[1]
-    w = ii.shape[2]
-    x = math.ceil(math.tan(rads) * (h / 2.))
-    y = math.ceil(math.tan(rads) * (w / 2.))
-
-    max_w = w - 2 * x
-    max_h = h - 2 * y
-
-    min_f = max(w / max_w, h / max_h)
-    f = np.random.uniform(min_f, 1.5)
+    f = np.random.uniform(0.9, 1.4)
 
     n_h = int(h / f)
     n_w = int(w / f)
@@ -150,6 +139,6 @@ def zoom_rot(ii, dd):
     dd_s /= f
 
     ii_s = iic.transpose((2, 0, 1))
-    ii_s = zoom(ii_s, (1, s_fh, s_fw), order=2)
+    ii_s = zoom(ii_s, (1, s_fh, s_fw), order=0, prefilter=False)
 
     return ii_s.astype(np.float32), dd_s.astype(np.float32)

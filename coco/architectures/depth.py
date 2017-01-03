@@ -40,12 +40,12 @@ class DepthPredictionScaffolder(Scaffolder):
             
             
         train_loss = loss(prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=upper_bound)
-        val_test_loss = mse(val_test_prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=upper_bound)
+        val_test_loss = loss(val_test_prediction, targets_reshaped, bounded=True, lower_bound=0.1, upper_bound=upper_bound)
 
         # Weight decay
         all_layers = lasagne.layers.get_all_layers(output_layer)
         l2_penalty = lasagne.regularization.regularize_layer_params(
-            all_layers, lasagne.regularization.l2) * 0.0002
+            all_layers, lasagne.regularization.l2) * 0.0001
         cost = train_loss + l2_penalty
 
         params = lasagne.layers.get_all_params(output_layer, trainable=True)
@@ -67,10 +67,8 @@ class DepthPredictionScaffolder(Scaffolder):
         self.lr_schedule = {
             1:  0.001,
             2:  0.01,
-            35: 0.005,
-            60: 0.002,
-            70: 0.0005,
-            80: 0.0001,
+            40: 0.001,
+            78: 0.0001,
         }
 
 
@@ -99,20 +97,22 @@ class ResidualDepth(Network):
                 l = Upscale2DLayer(l, 2)
             else:
                 out_num_filters = input_num_filters
-                
-            stack_1 = batch_norm(ConvLayer(l, num_filters=out_num_filters, filter_size=conv_filter, stride=(1,1), nonlinearity=rectify, pad=padding, W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
-            stack_2 = batch_norm(ConvLayer(stack_1, num_filters=out_num_filters, filter_size=(3,3), stride=(1,1), nonlinearity=None, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+            
+            bottleneck = out_num_filters // 4
+            stack_1 = batch_norm(ConvLayer(l, num_filters=bottleneck, filter_size=(1,1), stride=(1,1), nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+            stack_2 = batch_norm(ConvLayer(stack_1, num_filters=bottleneck, filter_size=conv_filter, stride=(1,1), nonlinearity=rectify, pad=padding, W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
+            stack_3 = batch_norm(ConvLayer(stack_2, num_filters=out_num_filters, filter_size=(1,1), stride=(1,1), nonlinearity=None, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
 
             # add shortcut connections
             if decrease_dim:
                 if projection:
                     # projection shortcut, as option B in paper
                     projection = batch_norm(ConvLayer(l, num_filters=out_num_filters, filter_size=proj_filter, stride=(1,1), nonlinearity=None, pad=padding, b=None, flip_filters=False))
-                    block = NonlinearityLayer(ElemwiseSumLayer([stack_2, projection]),nonlinearity=rectify)
+                    block = NonlinearityLayer(ElemwiseSumLayer([stack_3, projection]),nonlinearity=rectify)
                 else:
                     raise NotImplementedError()
             else:
-                block = NonlinearityLayer(ElemwiseSumLayer([stack_2, l]),nonlinearity=rectify)
+                block = NonlinearityLayer(ElemwiseSumLayer([stack_3, l]),nonlinearity=rectify)
             return block
 
         # create a residual learning building block with two stacked 3x3 convlayers as in paper
@@ -162,8 +162,8 @@ class ResidualDepth(Network):
 
         # Save reference before downsampling
         l_1 = l
-
         l = residual_block(l, projection=True, force_output=int(256 * self.k))
+        l = residual_block(l)
         l = residual_block(l)
 
         l_2 = l
@@ -174,7 +174,6 @@ class ResidualDepth(Network):
         for _ in range(1,4):
             l = residual_block(l)
         l_3 = l
-
         # Output is 512x30x40 at this point
 
         l = residual_block(l, projection=True,increase_dim=True)
@@ -190,12 +189,10 @@ class ResidualDepth(Network):
 
         # Output is 2048x8x10 at this point
         l_5 = l
-
         # Compress filters
         l = batch_norm(ConvLayer(l, num_filters=int(self.k * 1024), filter_size=(1,1), stride=(1,1), nonlinearity=None, pad="same", W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
 
         l_6 = l
-
         ############################
         # Expansive path
         ############################
@@ -203,7 +200,6 @@ class ResidualDepth(Network):
         # first expansive block. seventh stack of residual,s output is 512x16x20
         l = residual_block_up(l, decrease_dim=True, padding=1, conv_filter=(4,4), proj_filter=(4,4))
         l_7 = l
-        
         l = ConcatLayer([l_4,l_7])
         # Compress channels
         l = batch_norm(ConvLayer(l, num_filters=int(self.k * 512), filter_size=(3,3), stride=1, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
@@ -217,7 +213,6 @@ class ResidualDepth(Network):
         # first expansive block. seventh stack of residuals, output is 256x30x40
         l = residual_block_up(l, decrease_dim=True, padding=1, conv_filter=(4,3), proj_filter=(4,3))
         l_8 = l
-
         
         l = ConcatLayer([l_3,l_8])
         l = batch_norm(ConvLayer(l, num_filters=int(self.k * 256), filter_size=(3,3), stride=1, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
@@ -225,7 +220,6 @@ class ResidualDepth(Network):
         # residual block #8, output is 128x60x80
         l = residual_block_up(l, decrease_dim=True,  padding=1, conv_filter=(4,3), proj_filter=(4,3))
         l_9 = l
-
         
         l = ConcatLayer([l_2,l_9])
         l = batch_norm(ConvLayer(l, num_filters=int(self.k * 128), filter_size=(3,3), stride=1, nonlinearity=rectify, pad='same', W=lasagne.init.HeNormal(gain='relu'), flip_filters=False))
@@ -233,8 +227,11 @@ class ResidualDepth(Network):
         # residual block #9, output is 64x120x160
         l = residual_block_up(l, decrease_dim=True)
         l_10 = l
-
         # Final convolution
         l = ConvLayer(l, num_filters=1, filter_size=(3,3), stride=(1,1), nonlinearity=rectify, pad="same", W=lasagne.init.HeNormal(gain='relu'), flip_filters=False)
-
+        
+        for ll in lasagne.layers.get_all_layers(l):
+            if type(ll) == ConvLayer:
+                pass
+                # print ll.output_shape
         return [l]

@@ -11,6 +11,7 @@ sys.path.insert(0, parentdir)
 
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
+from coco.job import Job
 from coco.architectures.depth import DepthPredictionScaffolder, ResidualDepth
 from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
 
@@ -27,7 +28,6 @@ def process_train(images, labels):
     
     global mean
     images, labels = flip_x(images, labels)
-    images, labels = exp(images, labels)
     images, labels = zoom_rotate(images, labels)
     images, labels = random_rgb(images, labels)
     images, labels = clip(images, labels, ic=(0. ,255.))
@@ -92,8 +92,9 @@ def main():
     scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
     
     scaffolder.compile()
-    scaffolder.fit(80, job_name="nyu_depth", snapshot="/data/data/resunet.npz", momentum=0.95,)
-    scaffolder.save("/data/data/resunet.npz")
+    Job.set_job_dir("/data/coco-jobs-relocated")
+    scaffolder.fit(80, job_name="nyu_depth_thesis", snapshot="/data/data/resunet_thesis.npz", momentum=0.9,)
+    scaffolder.save("/data/data/resunet_thesis.npz")
     
     
 

@@ -45,6 +45,10 @@ class Job(object):
     @staticmethod
     def list():
         return os.listdir(JOB_DIR)
+    
+    @staticmethod
+    def set_job_dir(dir):
+        JOB_DIR = dir
     @staticmethod
     def from_name(name):
         """

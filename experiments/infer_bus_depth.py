@@ -15,7 +15,7 @@ from coco.architectures.regression import BURegressionScaffolder, BURegressor
 from coco.transformations import random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
 
 global mean
-mean = np.load("/data/food3d/f3d-rgbd-train.npy")
+mean = np.load("/ssd/food3d/f3d-rgbd-train.npy")
 
 def process_train(images, labels):
     images = images.astype(np.float32)
@@ -50,8 +50,8 @@ def process_val(images, labels):
 
 
 def main():
-    train_db = "/data/food3d/f3d-rgbd-f3-train.hdf5"
-    val_db = "/data/food3d/f3d-rgbd-f3-val.hdf5"
+    train_db = "/ssd/food3d/f3d-rgbd-f2-train.hdf5"
+    val_db = "/ssd/food3d/f3d-rgbd-f2-val.hdf5"
 
     batch_size = 32
 
@@ -74,8 +74,8 @@ def main():
     
     scaffolder.load("/data/data/resnet50-food-101.npz", strict=False)
     scaffolder.compile()
-    out_file = "/data/data/bu_regressor_rgbd_f3.npz"
-    scaffolder.fit(40, job_name="bu_regression_rgbd_f3", snapshot=out_file, momentum=0.95)
+    out_file = "/data/data/bu_regressor_rgbd_f2_thesis.npz"
+    scaffolder.fit(40, job_name="bu_regression_rgbd_f2_thesis", snapshot=out_file, momentum=0.95)
     scaffolder.save(out_file)
     
     

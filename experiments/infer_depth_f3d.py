@@ -15,7 +15,7 @@ from coco.architectures.depth import DepthPredictionScaffolder, ResidualDepth
 from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
 
 global mean
-mean = np.load("/data/food3d/f3d-train.npy")
+mean = np.load("/ssd/food3d/f3d-train.npy")
 
 def process_train(images, labels):
     images = images.astype(np.float32)
@@ -62,8 +62,8 @@ def process_val(images, labels):
 
 
 def main():
-    train_db = "/data/food3d/f3d-train.hdf5"
-    val_db = "/data/food3d/f3d-val.hdf5"
+    train_db = "/ssd/food3d/f3d-train.hdf5"
+    val_db = "/ssd/food3d/f3d-val.hdf5"
 
     batch_size = 16
 
@@ -87,7 +87,7 @@ def main():
         20: 0.0001
     }
     
-    outfile = "/data/data/resunet_f3d_limited.npz"
+    outfile = "/data/data/resunet_f3d_limited_thesis.npz"
     scaffolder.fit(40, job_name="f3d_depth_limited", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
     scaffolder.save(outfile)
     
