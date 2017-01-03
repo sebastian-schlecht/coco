@@ -20,8 +20,17 @@ def main():
     image = "./data/tartare.jpg"
 
     # Open the image file
-    img = Image.open(image)
-    img = np.array(img).transpose((2, 0, 1))[np.newaxis, :, :, :].astype(np.float32)
+    #img = Image.open(image)
+    #img = np.array(img).transpose((2, 0, 1))[np.newaxis, :, :, :].astype(np.float32)
+    img = np.load("/Users/sebastian/Desktop/BDVA Presentation/rgb.npy")
+    img = img.transpose((1,2,0)).astype(np.uint8)
+    img = Image.fromarray(img)
+    img = ImageOps.fit(img, (256, 256))
+    img = np.array(img).transpose((2,0,1))[np.newaxis,:,:,:].astype(np.float32)
+
+
+
+
     mean = np.load("./data/food-101-train.npy").astype(np.float32)
 
     # Prepare Theano variables for inputs and targets
@@ -82,7 +91,7 @@ def main():
     saliency = np.array(saliencies).mean(axis=0)
 
     # According to
-    np.save("./data/saliency.npy", saliency)
+    np.save("./data/saliency_fruit.npy", saliency)
 
     # The saved saliency can be used as initial mask for graphcut models
     print "Done"
