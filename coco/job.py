@@ -4,6 +4,7 @@ import joblib
 
 from os.path import expanduser
 home = expanduser("~")
+global JOB_DIR
 JOB_DIR = "%s/.coco/jobs" % home
 
 
@@ -48,6 +49,7 @@ class Job(object):
     
     @staticmethod
     def set_job_dir(dir):
+        global JOB_DIR
         JOB_DIR = dir
     @staticmethod
     def from_name(name):

@@ -119,15 +119,17 @@ def zoom_rot(ii, dd):
     ddr = rotate(dd, a, order=0, prefilter=False, reshape=False)
     iir = rotate(ii.transpose((1, 2, 0)), a, prefilter=False, order=0, reshape=False)
 
-    f = np.random.uniform(0.9, 1.4)
+    h = ii.shape[1]
+    w = ii.shape[2]
+    f = np.random.uniform(1., 1.4)
 
     n_h = int(h / f)
     n_w = int(w / f)
 
-    upper = h - n_h - y
-    cy = np.random.randint(y, upper)
-    upper = w - n_w - x
-    cx = np.random.randint(x, upper)
+    upper = h - n_h
+    cy = np.random.randint(0, upper)
+    upper = w - n_w
+    cx = np.random.randint(0, upper)
 
     ddc = ddr[cy:cy + n_h, cx:cx + n_w]
     iic = iir[cy:cy + n_h, cx:cx + n_w, :]

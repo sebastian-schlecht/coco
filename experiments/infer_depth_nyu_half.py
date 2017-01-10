@@ -11,12 +11,12 @@ sys.path.insert(0, parentdir)
 
 from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
+from coco.job import Job
 from coco.architectures.depth import DepthPredictionScaffolder, ResidualDepth
-from coco.losses import berhu_spatial
 from coco.transformations import zoom_rotate, random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
 
 global mean
-mean = np.load("/data/food3d/f3d-train.npy")
+mean = np.load("/data/data/nyu_v2.npy")
 
 def process_train(images, labels):
     images = images.astype(np.float32)
@@ -28,7 +28,6 @@ def process_train(images, labels):
     
     global mean
     images, labels = flip_x(images, labels)
-    images, labels = exp(images, labels)
     images, labels = zoom_rotate(images, labels)
     images, labels = random_rgb(images, labels)
     images, labels = clip(images, labels, ic=(0. ,255.))
@@ -74,8 +73,8 @@ def process_val(images, labels):
 
 
 def main():
-    train_db = "/data/food3d/f3d-train.hdf5"
-    val_db = "/data/food3d/f3d-val.hdf5"
+    train_db = "/data/data/nyu_v2.hdf5"
+    val_db = "/data/data/test_v2.hdf5"
 
     batch_size = 16
 
@@ -90,20 +89,12 @@ def main():
     val_processor = MultiProcessor(
         val_reader, func=process_val, batch_size=batch_size)
 
-    scaffolder = DepthPredictionScaffolder(ResidualDepth, 
-                                           train_processor, 
-                                           val_reader=val_processor,
-                                           loss=berhu_spatial)
+    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor, k=0.5)
     
     scaffolder.compile()
-    scaffolder.load("/data/data/resunet.npz")
-    lr_schedule = {
-        1:  0.001,
-        20: 0.0001
-    }
-    
-    scaffolder.fit(40, job_name="f3d_depth_spatial_limited", snapshot="/data/data/resunet_f3d_spatial_limited.npz", momentum=0.95, lr_schedule=lr_schedule)
-    scaffolder.save("/data/data/resunet_f3d_spatial_limited.npz")
+    Job.set_job_dir("/data/coco-jobs-relocated")
+    scaffolder.fit(90, job_name="nyu_depth_half_thesis", snapshot="/data/data/resunet_half_thesis.npz", momentum=0.95,)
+    scaffolder.save("/data/data/resunet_half_thesis.npz")
     
     
 

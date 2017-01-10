@@ -33,6 +33,7 @@ class DepthPredictionScaffolder(Scaffolder):
             loss = self.args["loss"]
         else:
             loss = berhu
+            
         if "upper_bound" in self.args:
             upper_bound = self.args["upper_bound"]
         else:
@@ -45,7 +46,7 @@ class DepthPredictionScaffolder(Scaffolder):
         # Weight decay
         all_layers = lasagne.layers.get_all_layers(output_layer)
         l2_penalty = lasagne.regularization.regularize_layer_params(
-            all_layers, lasagne.regularization.l2) * 0.0001
+            all_layers, lasagne.regularization.l2) * 0.0002
         cost = train_loss + l2_penalty
 
         params = lasagne.layers.get_all_params(output_layer, trainable=True)

@@ -79,17 +79,17 @@ def main():
     val_processor = MultiProcessor(
         val_reader, func=process_val, batch_size=batch_size)
 
-    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
+    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor, k=0.5)
     Job.set_job_dir("/data/coco-jobs-relocated")
     scaffolder.compile()
-    scaffolder.load("/data/data/resunet_thesis.npz")
+    scaffolder.load("/data/data/resunet_half_thesis.npz")
     lr_schedule = {
         1:  0.001,
         20: 0.0001
     }
     
-    outfile = "/data/data/resunet_f3d_limited_thesis.npz"
-    scaffolder.fit(40, job_name="f3d_depth_limited_thesis", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
+    outfile = "/data/data/resunet_f3d_half_limited_thesis.npz"
+    scaffolder.fit(40, job_name="f3d_depth_half_limited_thesis", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
     scaffolder.save(outfile)
     
     

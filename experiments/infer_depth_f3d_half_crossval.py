@@ -21,6 +21,10 @@ mean = np.load("/ssd/food3d/f3d-train.npy")
 def process_train(images, labels):
     images = images.astype(np.float32)
     labels = labels.astype(np.float32)
+    
+    # Extract data from combined blob
+    images = images[:,0:3,:,:]
+    labels = labels[:,3,:,:]
 
     assert images.shape[0] == labels.shape[0]
 
@@ -47,7 +51,11 @@ def process_train(images, labels):
 def process_val(images, labels):
     images = images.astype(np.float32)
     labels = labels.astype(np.float32)
-
+    
+    # Extract data from combined blob
+    images = images[:,0:3,:,:]
+    labels = labels[:,3,:,:]
+    
     assert images.shape[0] == labels.shape[0]
     global mean
 
@@ -63,15 +71,15 @@ def process_val(images, labels):
 
 
 def main():
-    train_db = "/ssd/food3d/f3d-train.hdf5"
-    val_db = "/ssd/food3d/f3d-val.hdf5"
+    train_db = "/ssd/food3d/f3d-rgbd-train.hdf5"
+    val_db = "/ssd/food3d/f3d-rgbd-val.hdf5"
 
     batch_size = 16
 
-    train_reader = HDF5DatabaseReader(label_key="depths")
+    train_reader = HDF5DatabaseReader(image_key='rgbd', label_key="rgbd")
     train_reader.setup_read(train_db)
 
-    val_reader = HDF5DatabaseReader(label_key="depths")
+    val_reader = HDF5DatabaseReader(image_key='rgbd', label_key="rgbd")
     val_reader.setup_read(val_db)
 
     train_processor = MultiProcessor(
@@ -79,17 +87,17 @@ def main():
     val_processor = MultiProcessor(
         val_reader, func=process_val, batch_size=batch_size)
 
-    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor)
+    scaffolder = DepthPredictionScaffolder(ResidualDepth, train_processor, val_reader=val_processor, k=0.5)
     Job.set_job_dir("/data/coco-jobs-relocated")
     scaffolder.compile()
-    scaffolder.load("/data/data/resunet_thesis.npz")
+    scaffolder.load("/data/data/resunet_half_thesis.npz")
     lr_schedule = {
         1:  0.001,
         20: 0.0001
     }
     
-    outfile = "/data/data/resunet_f3d_limited_thesis.npz"
-    scaffolder.fit(40, job_name="f3d_depth_limited_thesis", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
+    outfile = "/data/data/resunet_f3d_half_limited_f1_thesis.npz"
+    scaffolder.fit(40, job_name="f3d_depth_half_limited_f1_thesis", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
     scaffolder.save(outfile)
     
     
