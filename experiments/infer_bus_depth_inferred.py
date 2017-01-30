@@ -13,9 +13,10 @@ from coco.database_reader import HDF5DatabaseReader
 from coco.multiprocess import MultiProcessor
 from coco.architectures.regression import BURegressionScaffolder, BURegressor
 from coco.transformations import random_rgb, random_crop, normalize_images, downsample, clip, noise, exp, flip_x
+from coco.job import Job
 
 global mean
-mean = np.load("/data/food3d/f3d-rgbd-infer-train.npy")
+mean = np.load("/ssd/food3d/f3d-rgbd-infer-train.npy")
 
 def process_train(images, labels):
     images = images.astype(np.float32)
@@ -51,8 +52,8 @@ def process_val(images, labels):
 
 
 def main():
-    train_db = "/data/food3d/f3d-rgbd-infer-f3-train.hdf5"
-    val_db = "/data/food3d/f3d-rgbd-infer-f3-val.hdf5"
+    train_db = "/ssd/food3d/f3d-rgbd-f3-crossval-infer-train.hdf5"
+    val_db = "/ssd/food3d/f3d-rgbd-f3-crossval-infer-val.hdf5"
 
     batch_size = 32
 
@@ -67,7 +68,7 @@ def main():
     val_processor = MultiProcessor(
         val_reader, func=process_val, batch_size=batch_size)
 
-    
+    Job.set_job_dir("/data/coco-jobs-relocated")
     scaffolder = BURegressionScaffolder(BURegressor, 
                                            train_reader=train_processor, 
                                            val_reader=val_processor,
@@ -75,8 +76,8 @@ def main():
 
     scaffolder.load("/data/data/resnet50-food-101.npz", strict=False)
     scaffolder.compile()
-    out_file = "/data/data/bu_regressor_rgbd_infer_f3.npz"
-    scaffolder.fit(40, job_name="bu_regression_rgbd_infer_f3", snapshot=out_file, momentum=0.95)
+    out_file = "/data/data/bu_regressor_rgbd_infer_f3_thesis.npz"
+    scaffolder.fit(40, job_name="bu_regression_rgbd_infer_f3_thesis", snapshot=out_file, momentum=0.95)
     scaffolder.save(out_file)
     
     

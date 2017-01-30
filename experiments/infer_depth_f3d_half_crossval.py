@@ -71,8 +71,8 @@ def process_val(images, labels):
 
 
 def main():
-    train_db = "/ssd/food3d/f3d-rgbd-train.hdf5"
-    val_db = "/ssd/food3d/f3d-rgbd-val.hdf5"
+    train_db = "/ssd/food3d/f3d-rgbd-f3-train.hdf5"
+    val_db = "/ssd/food3d/f3d-rgbd-f3-val.hdf5"
 
     batch_size = 16
 
@@ -96,8 +96,8 @@ def main():
         20: 0.0001
     }
     
-    outfile = "/data/data/resunet_f3d_half_limited_f1_thesis.npz"
-    scaffolder.fit(40, job_name="f3d_depth_half_limited_f1_thesis", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
+    outfile = "/data/data/resunet_f3d_half_limited_f3_thesis.npz"
+    scaffolder.fit(40, job_name="f3d_depth_half_limited_f3_thesis", snapshot=outfile, momentum=0.95, lr_schedule=lr_schedule)
     scaffolder.save(outfile)
     
     
