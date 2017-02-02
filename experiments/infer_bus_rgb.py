@@ -16,10 +16,11 @@ from coco.transformations import random_rgb, random_crop, normalize_images, down
 from coco.job import Job
 
 global mean
-mean = np.load("/ssd/food3d/f3d-rgbd-train.npy")
+mean = np.load("/ssd/food3d/f3d-train.npy")
 
 def process_train(images, labels):
     images = images.astype(np.float32)
+    images = images[:,0:3,:,:]
     labels = labels.astype(np.float32)
 
     assert images.shape[0] == labels.shape[0]
@@ -29,7 +30,6 @@ def process_train(images, labels):
     global mean
     
     images, _ = normalize_images(images, labels, mean)
-    images, _ = flip_x(images, None)
     images, _ = random_crop(images, None, size)
     
     return images, labels
@@ -37,6 +37,7 @@ def process_train(images, labels):
 
 def process_val(images, labels):
     images = images.astype(np.float32)
+    images = images[:,0:3,:,:]
     labels = labels.astype(np.float32)
 
     assert images.shape[0] == labels.shape[0]
@@ -46,6 +47,7 @@ def process_val(images, labels):
     global mean
 
     images, _ = normalize_images(images, labels, mean)
+    images, _ = flip_x(images, None)
     images, _ = random_crop(images, None, size, deterministic=True)
 
     return images, labels
@@ -72,12 +74,12 @@ def main():
     scaffolder = BURegressionScaffolder(BURegressor, 
                                            train_reader=train_processor, 
                                            val_reader=val_processor,
-                                           with_depth=True)
+                                           with_depth=False)
     
     scaffolder.load("/data/data/resnet50-food-101.npz", strict=False)
     scaffolder.compile()
-    out_file = "/data/data/bu_regressor_rgbd_f1_thesis.npz"
-    scaffolder.fit(40, job_name="bu_regression_rgbd_f1_thesis", snapshot=out_file, momentum=0.95)
+    out_file = "/data/data/bu_regressor_rgb_only_f1_thesis.npz"
+    scaffolder.fit(40, job_name="bu_regression_rgb_only_thesis_f1", snapshot=out_file, momentum=0.95)
     scaffolder.save(out_file)
     
     
